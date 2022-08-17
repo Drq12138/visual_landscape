@@ -1,8 +1,5 @@
-from operator import mod
 import random
-from statistics import mode
 from time import time
-from tkinter.tix import DirSelectBox
 import numpy as np
 import torch
 import torchvision.datasets as datasets
@@ -839,6 +836,8 @@ def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion
 
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
+
+def get_delta(model, dataloader, criterion):
 
 
 

@@ -55,7 +55,7 @@ def main():
         model = torch.nn.DataParallel(model)
     model.cuda()
 
-    #-------------resume------------------------
+    # -------------resume------------------------
     print("=> loading checkpoint '{}'".format(args.load_path))
     checkpoint = torch.load(args.load_path)
     model.load_state_dict(checkpoint['state_dict'])
@@ -69,21 +69,22 @@ def main():
     save_path = os.path.join(args.save_dir, args.name)
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
-    fileindices=np.linspace(0,args.epoch,args.epoch + 1)
+    fileindices = np.linspace(0, args.epoch, args.epoch + 1)
 
     load_plt_path_1 = os.path.join(args.save_dir, args.plt_path_one)
-    filesnames_1 = [load_plt_path_1 + '/save_net_' + args.arch + '_' +str(int(i)).zfill(len(str(args.epoch)))+ '.pt' for i in fileindices]
+    filesnames_1 = [load_plt_path_1 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt'
+                    for i in fileindices]
 
     if args.plt_path_two:
         load_plt_path_2 = os.path.join(args.save_dir, args.plt_path_two)
-        filesnames_2 = [load_plt_path_2 + '/save_net_' + args.arch + '_' +str(int(i)).zfill(len(str(args.epoch)))+ '.pt' for i in fileindices]
-
+        filesnames_2 = [
+            load_plt_path_2 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i in
+            fileindices]
 
     args.xmin, args.xmax, args.xnum = [float(a) for a in args.x.split(':')]
     args.xnum = int(args.xnum)
     args.ymin, args.ymax, args.ynum = [float(a) for a in args.y.split(':')]
     args.ynum = int(args.ynum)
-
 
     # xcoordinates = np.linspace(args.xmin, args.xmax, num=args.xnum)
     # ycoordinates = np.linspace(args.ymin, args.ymax, num=args.ynum)
@@ -93,17 +94,8 @@ def main():
     print('begin plot')
 
     # plot_mult(model,origin_weight, origin_state, filesnames_1,filesnames_2, train_loader,criterion,save_path, args.plot_num, args.plot_ratio, args.direction_path)
-    plot_single(model, origin_weight,origin_state, filesnames_1, train_loader,criterion,save_path, args.plot_num, args.plot_ratio, args.direction_path)
-
-
-
-
-
-
-
-
-
-
+    plot_single(model, origin_weight, origin_state, filesnames_1, train_loader, criterion, save_path, args.plot_num,
+                args.plot_ratio, args.direction_path)
 
 
 if __name__ == "__main__":

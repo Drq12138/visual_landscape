@@ -5,7 +5,14 @@
       <paths name="pami@202.120.37.154:5120 password">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/DiskB/rqding/visual_landscape" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="pami@202.120.37.154:5120 password (1)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/DiskB/rqding/visual_landscape" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
