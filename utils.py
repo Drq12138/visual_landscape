@@ -17,6 +17,7 @@ import math
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -33,10 +34,8 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-
-
-def set_seed(seed=233): 
-    print ('Random Seed:', seed)
+def set_seed(seed=1):
+    print('Random Seed:', seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -47,46 +46,46 @@ def set_seed(seed=233):
 
 def get_datasets(args):
     if args.datasets == 'MNIST':
-        print ('normal dataset!')
+        print('normal dataset!')
         mnist_train = datasets.MNIST("../data", train=True, download=True, transform=transforms.ToTensor())
         mnist_test = datasets.MNIST("../data", train=False, download=True, transform=transforms.ToTensor())
-        train_loader = torch.utils.data.DataLoader(mnist_train, batch_size = args.batch_size, shuffle=True)
-        val_loader = torch.utils.data.DataLoader(mnist_test, batch_size = 100, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(mnist_train, batch_size=args.batch_size, shuffle=True)
+        val_loader = torch.utils.data.DataLoader(mnist_test, batch_size=100, shuffle=False)
     elif args.datasets == 'CIFAR10':
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         if args.smalldatasets:
             percent = args.smalldatasets
-            path = os.path.join("../data", 'cifar10_' + str(percent) +  '_smalldataset')
+            path = os.path.join("../data", 'cifar10_' + str(percent) + '_smalldataset')
             # path = 'cifar10_' + str(percent) +  '_smalldataset'
-            print ('Use ', percent, 'of Datasets')
-            print ('path:', path)
+            print('Use ', percent, 'of Datasets')
+            print('path:', path)
             ################################################################
             # Use small datasets
 
             if os.path.exists(path):
-                print ('read dataset!')
+                print('read dataset!')
                 trainset = torch.load(path)
             else:
-                print ('make dataset!')
+                print('make dataset!')
                 trainset = datasets.CIFAR10(root='../data', train=True, transform=transforms.Compose([
-                        transforms.RandomHorizontalFlip(),
-                        transforms.RandomCrop(32, 4),
-                        transforms.ToTensor(),
-                        normalize,
-                    ]), download=True)
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomCrop(32, 4),
+                    transforms.ToTensor(),
+                    normalize,
+                ]), download=True)
                 N = int(percent * len(trainset))
                 trainset.targets = trainset.targets[:N]
                 trainset.data = trainset.data[:N]
 
                 torch.save(trainset, path)
-                print (N)
+                print(N)
             train_loader = torch.utils.data.DataLoader(
                 trainset,
                 batch_size=args.batch_size, shuffle=True,
                 num_workers=args.workers, pin_memory=True)
-            print ('dataset size: ', len(train_loader.dataset))
+            print('dataset size: ', len(train_loader.dataset))
         else:
-            print ('normal dataset!')
+            print('normal dataset!')
             train_loader = torch.utils.data.DataLoader(
                 datasets.CIFAR10(root='../data', train=True, transform=transforms.Compose([
                     transforms.RandomHorizontalFlip(),
@@ -103,46 +102,45 @@ def get_datasets(args):
             ])),
             batch_size=128, shuffle=False,
             num_workers=args.workers, pin_memory=True)
-    
+
     elif args.datasets == 'CIFAR100':
         normalize = transforms.Normalize(mean=[0.5070751592371323, 0.48654887331495095, 0.4409178433670343],
-                                        std=[0.2673342858792401, 0.2564384629170883, 0.27615047132568404])
+                                         std=[0.2673342858792401, 0.2564384629170883, 0.27615047132568404])
         if args.smalldatasets:
             percent = args.smalldatasets
-            path = os.path.join("../data", 'cifar100_' + str(percent) +  '_smalldataset')
+            path = os.path.join("../data", 'cifar100_' + str(percent) + '_smalldataset')
             # path = 'cifar100_' + str(percent) +  '_smalldataset'
-            print ('Use ', percent, 'of Datasets')
-            print ('path:', path)
+            print('Use ', percent, 'of Datasets')
+            print('path:', path)
             ################################################################
             # Use small datasets
 
             if os.path.exists(path):
-                print ('load dataset!')
+                print('load dataset!')
                 trainset = torch.load(path)
             else:
-                print ('create dataset!')
+                print('create dataset!')
                 trainset = datasets.CIFAR100(root='../data', train=True, transform=transforms.Compose([
-                        transforms.RandomHorizontalFlip(),
-                        transforms.RandomCrop(32, 4),
-                        transforms.ToTensor(),
-                        normalize,
-                    ]), download=True)
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomCrop(32, 4),
+                    transforms.ToTensor(),
+                    normalize,
+                ]), download=True)
                 N = int(percent * len(trainset))
                 trainset.targets = trainset.targets[:N]
                 trainset.data = trainset.data[:N]
 
                 torch.save(trainset, path)
-                print (N)
-                
+                print(N)
 
             train_loader = torch.utils.data.DataLoader(
                 trainset,
                 batch_size=args.batch_size, shuffle=True,
                 num_workers=args.workers, pin_memory=True)
-            print ('dataset size: ', len(train_loader.dataset))
-        
+            print('dataset size: ', len(train_loader.dataset))
+
         else:
-            print ('normal dataset!')
+            print('normal dataset!')
             train_loader = torch.utils.data.DataLoader(
                 datasets.CIFAR100(root='../data', train=True, transform=transforms.Compose([
                     transforms.RandomHorizontalFlip(),
@@ -160,7 +158,7 @@ def get_datasets(args):
             ])),
             batch_size=128, shuffle=False,
             num_workers=args.workers, pin_memory=True)
-    
+
     return train_loader, val_loader
 
 
@@ -313,26 +311,7 @@ def get_model(args):
     return resnet.__dict__[args.arch](num_classes=num_class)
 
 
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
 def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
     batch_size = target.size(0)
 
@@ -348,25 +327,15 @@ def accuracy(output, target, topk=(1,)):
 
 
 def get_weights(net):
-    """ Extract parameters from net, and return a list of tensors"""
     return [p.data for p in net.parameters()]
 
 
 def get_random_weights(weights):
-    """
-        Produce a random direction that is a list of random Gaussian tensors
-        with the same shape as the network's weights, so one direction entry per weight.
-    """
     return [torch.randn(w.size()).cuda() for w in weights]
 
-def get_random_states(states):
-    """
-        Produce a random direction that is a list of random Gaussian tensors
-        with the same shape as the network's state_dict(), so one direction entry
-        per weight, including BN's running_mean/var.
-    """
-    return [torch.randn(w.size()) for k, w in states.items()]
 
+def get_random_states(states):
+    return [torch.randn(w.size()) for k, w in states.items()]
 
 
 def normalize_direction(direction, weights, norm='filter'):
@@ -383,11 +352,11 @@ def normalize_direction(direction, weights, norm='filter'):
         # Rescale the filters (weights in group) in 'direction' so that each
         # filter has the same norm as its corresponding filter in 'weights'.
         for d, w in zip(direction, weights):
-            d.mul_(w.norm()/(d.norm() + 1e-10))
+            d.mul_(w.norm() / (d.norm() + 1e-10))
     elif norm == 'layer':
         # Rescale the layer variables in the direction so that each layer has
         # the same norm as the layer variables in weights.
-        direction.mul_(weights.norm()/direction.norm())
+        direction.mul_(weights.norm() / direction.norm())
     elif norm == 'weight':
         # Rescale the entries in the direction so that each entry has the same
         # scale as the corresponding weight.
@@ -404,24 +373,25 @@ def normalize_direction(direction, weights, norm='filter'):
 
 
 def normalize_directions_for_weights(direction, weights, norm='filter', ignore='biasbn'):
-    assert(len(direction) == len(weights))
+    assert (len(direction) == len(weights))
     for d, w in zip(direction, weights):
         if d.dim() <= 1:
             if ignore == 'biasbn':
-                d.fill_(0) # ignore directions for weights with 1 dimension
+                d.fill_(0)  # ignore directions for weights with 1 dimension
             else:
-                d.copy_(w) # keep directions for weights/bias that are only 1 per node
+                d.copy_(w)  # keep directions for weights/bias that are only 1 per node
         else:
             normalize_direction(d, w, norm)
 
+
 def normalize_directions_for_states(direction, states, norm='filter', ignore='ignore'):
-    assert(len(direction) == len(states))
+    assert (len(direction) == len(states))
     for d, (k, w) in zip(direction, states.items()):
         if d.dim() <= 1:
             if ignore == 'biasbn':
-                d.fill_(0) # ignore directions for weights with 1 dimension
+                d.fill_(0)  # ignore directions for weights with 1 dimension
             else:
-                d.copy_(w) # keep directions for weights/bias that are only 1 per node
+                d.copy_(w)  # keep directions for weights/bias that are only 1 per node
         else:
             normalize_direction(d, w, norm)
 
@@ -438,20 +408,20 @@ def create_random_direction(model, weight_type='weight', ignore='biasbn', norm='
         normalize_directions_for_states(direction, states, norm, ignore)
     return direction
 
+
 def divide_param(vec, weight, weight_type='weight'):
-    index= 0
+    index = 0
     new_vec = []
     if weight_type == 'weight':
         for w in weight:
-            new_vec.append(torch.tensor((vec[index:index+w.numel()])).view(w.size()).cuda())
+            new_vec.append(torch.tensor((vec[index:index + w.numel()])).view(w.size()).cuda())
             index += w.numel()
     elif weight_type == 'state':
-        for k,s in weight.items():
-            new_vec.append(torch.tensor((vec[index:index+s.numel()])).view(s.size()).cuda())
+        for k, s in weight.items():
+            new_vec.append(torch.tensor((vec[index:index + s.numel()])).view(s.size()).cuda())
             index += s.numel()
 
     return new_vec
-
 
 
 def create_pca_direction(model, weight_type, filesnames, ignore='biasbn', norm='filter'):
@@ -461,22 +431,20 @@ def create_pca_direction(model, weight_type, filesnames, ignore='biasbn', norm='
         for file in filesnames:
             checkpoint = torch.load(file)
             model.load_state_dict(checkpoint['state_dict'])
-            temp_weight= get_weights(model)
-            temp_flat = flat_param(temp_weight,weight_type)
+            temp_weight = get_weights(model)
+            temp_flat = flat_param(temp_weight, weight_type)
             mats.append(temp_flat)
         mats = np.vstack(mats)
-        mats_new = mats[:-1]-mats[-1]
+        mats_new = mats[:-1] - mats[-1]
 
         pca = PCA(n_components=2)
         principalComponents = pca.fit_transform(mats_new.T)
-        x_direction = np.array(principalComponents[:,0])
-        x_direction = divide_param(x_direction,weight)
-        y_direction = np.array(principalComponents[:,1])
+        x_direction = np.array(principalComponents[:, 0])
+        x_direction = divide_param(x_direction, weight)
+        y_direction = np.array(principalComponents[:, 1])
         y_direction = divide_param(y_direction, weight)
         normalize_directions_for_weights(x_direction, weight, norm, ignore)
         normalize_directions_for_weights(y_direction, weight, norm, ignore)
-
-
 
         return x_direction, y_direction
     elif weight_type == 'state':
@@ -486,22 +454,21 @@ def create_pca_direction(model, weight_type, filesnames, ignore='biasbn', norm='
             checkpoint = torch.load(file)
             model.load_state_dict(checkpoint['state_dict'])
             temp_states = model.state_dict()
-            temp_flat = flat_param(temp_states,weight_type)
+            temp_flat = flat_param(temp_states, weight_type)
             mats.append(temp_flat)
 
         mats = np.vstack(mats)
-        mats_new = mats[:-1]-mats[-1]
+        mats_new = mats[:-1] - mats[-1]
 
         pca = PCA(n_components=2)
         principalComponents = pca.fit_transform(mats_new.T)
-        x_direction = np.array(principalComponents[:,0])
-        x_direction = divide_param(x_direction,states, weight_type)
-        y_direction = np.array(principalComponents[:,1])
+        x_direction = np.array(principalComponents[:, 0])
+        x_direction = divide_param(x_direction, states, weight_type)
+        y_direction = np.array(principalComponents[:, 1])
         y_direction = divide_param(y_direction, states, weight_type)
         normalize_directions_for_states(x_direction, states, norm, ignore)
         normalize_directions_for_states(y_direction, states, norm, ignore)
         return x_direction, y_direction
-
 
 
 def train_net(model, train_loader, optimizer, criterion, epoch):
@@ -512,38 +479,31 @@ def train_net(model, train_loader, optimizer, criterion, epoch):
         data, target = data.cuda(), target.cuda()
         optimizer.zero_grad()
         output = model(data)
-        loss = criterion(output,target)
+        loss = criterion(output, target)
         loss.backward()
         optimizer.step()
 
         losses.update(loss.item(), data.size(0))
-    
-    return losses.avg
 
+    return losses.avg
 
 
 def test(model, test_loader, criterion):
     model.cuda().eval()
-    for temp_param in model.parameters():
-        pass
-        # temp_param= model.parameters()[0].data
     accuracys = AverageMeter()
     losses = AverageMeter()
-    stime = time()
     with torch.no_grad():
         for batch_id, (data, target) in enumerate(test_loader):
             data, target = Variable(data).cuda(), Variable(target).cuda()
-            
-            output = model(data)
-            
-            loss = criterion(output,target)
-            acc = accuracy(output.data, target)[0]
-            accuracys.update(acc.item(),data.size(0))
-            losses.update(loss.item(), data.size(0))
-            
-    # print("cost: ", time() - stime)
-    return accuracys.avg, losses.avg
 
+            output = model(data)
+
+            loss = criterion(output, target)
+            acc = accuracy(output.data, target)[0]
+            accuracys.update(acc.item(), data.size(0))
+            losses.update(loss.item(), data.size(0))
+
+    return accuracys.avg, losses.avg
 
 
 def eval_loss(model, criterion, dataloader):
@@ -562,17 +522,16 @@ def eval_loss(model, criterion, dataloader):
 
             losses.update(loss.item(), input_data.shape[0])
             accuracy_ave.update(accuaray, input_data.shape[0])
-    
+
     return losses.avg, accuracy_ave.avg
 
 
-def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-1, interp=-1, show_points=False, show_polys=True):
-    #set this to True to generate points
+def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=-1, interp=-1, show_points=False,
+              show_polys=True):
+    # set this to True to generate points
     # show_points = False
     # #set this to True to generate polygons
     # show_polys = True
-
-
 
     x_array = xcoordinates[:].ravel()
     y_array = ycoordinates[:].ravel()
@@ -580,7 +539,7 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
 
     # Interpolate the resolution up to the desired amount
     if interp > 0:
-        m = interpolate.interp2d(xcoordinates[0,:], ycoordinates[:,0], vals, kind='cubic')
+        m = interpolate.interp2d(xcoordinates[0, :], ycoordinates[:, 0], vals, kind='cubic')
         x_array = np.linspace(min(x_array), max(x_array), interp)
         y_array = np.linspace(min(y_array), max(y_array), interp)
         z_array = m(x_array, y_array).ravel()
@@ -588,15 +547,15 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
         x_array, y_array = np.meshgrid(x_array, y_array)
         x_array = x_array.ravel()
         y_array = y_array.ravel()
-    
+
     vtp_file = os.path.join(base_dir, name)
     if zmax > 0:
         z_array[z_array > zmax] = zmax
-        vtp_file +=  "_zmax=" + str(zmax)
+        vtp_file += "_zmax=" + str(zmax)
 
     if log:
         z_array = np.log(z_array + 0.1)
-        vtp_file +=  "_log"
+        vtp_file += "_log"
     vtp_file += ".vtp"
     print("Here's your output file:{}".format(vtp_file))
 
@@ -625,7 +584,7 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
         for row_count in range(poly_size):
             temp_index = stride_value + row_count
             averaged_z_value = (z_array[temp_index] + z_array[temp_index + 1] +
-                                z_array[temp_index + matrix_size]  +
+                                z_array[temp_index + matrix_size] +
                                 z_array[temp_index + matrix_size + 1]) / 4.0
             averaged_z_value_array.append(averaged_z_value)
             poly_count += 1
@@ -638,15 +597,23 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
     output_file.write('  <PolyData>\n')
 
     if (show_points and show_polys):
-        output_file.write('    <Piece NumberOfPoints="{}" NumberOfVerts="{}" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="{}">\n'.format(number_points, number_points, number_polys))
+        output_file.write(
+            '    <Piece NumberOfPoints="{}" NumberOfVerts="{}" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="{}">\n'.format(
+                number_points, number_points, number_polys))
     elif (show_polys):
-        output_file.write('    <Piece NumberOfPoints="{}" NumberOfVerts="0" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="{}">\n'.format(number_points, number_polys))
+        output_file.write(
+            '    <Piece NumberOfPoints="{}" NumberOfVerts="0" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="{}">\n'.format(
+                number_points, number_polys))
     else:
-        output_file.write('    <Piece NumberOfPoints="{}" NumberOfVerts="{}" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="">\n'.format(number_points, number_points))
+        output_file.write(
+            '    <Piece NumberOfPoints="{}" NumberOfVerts="{}" NumberOfLines="0" NumberOfStrips="0" NumberOfPolys="">\n'.format(
+                number_points, number_points))
 
     # <PointData>
     output_file.write('      <PointData>\n')
-    output_file.write('        <DataArray type="Float32" Name="zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(min_value_array[2], max_value_array[2]))
+    output_file.write(
+        '        <DataArray type="Float32" Name="zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
+            min_value_array[2], max_value_array[2]))
     for vertexcount in range(number_points):
         if (vertexcount % 6) is 0:
             output_file.write('          ')
@@ -663,7 +630,9 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
     # <CellData>
     output_file.write('      <CellData>\n')
     if (show_polys and not show_points):
-        output_file.write('        <DataArray type="Float32" Name="averaged zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(avg_min_value, avg_max_value))
+        output_file.write(
+            '        <DataArray type="Float32" Name="averaged zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
+                avg_min_value, avg_max_value))
         for vertexcount in range(number_polys):
             if (vertexcount % 6) is 0:
                 output_file.write('          ')
@@ -679,7 +648,9 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
 
     # <Points>
     output_file.write('      <Points>\n')
-    output_file.write('        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(min_value, max_value))
+    output_file.write(
+        '        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
+            min_value, max_value))
     for vertexcount in range(number_points):
         if (vertexcount % 2) is 0:
             output_file.write('          ')
@@ -695,7 +666,9 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
 
     # <Verts>
     output_file.write('      <Verts>\n')
-    output_file.write('        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(number_points - 1))
+    output_file.write(
+        '        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(
+            number_points - 1))
     if (show_points):
         for vertexcount in range(number_points):
             if (vertexcount % 6) is 0:
@@ -708,7 +681,9 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
         if (vertexcount % 6) is not 5:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
-    output_file.write('        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(number_points))
+    output_file.write(
+        '        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(
+            number_points))
     if (show_points):
         for vertexcount in range(number_points):
             if (vertexcount % 6) is 0:
@@ -725,23 +700,33 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
 
     # <Lines>
     output_file.write('      <Lines>\n')
-    output_file.write('        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(number_polys - 1))
+    output_file.write(
+        '        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(
+            number_polys - 1))
     output_file.write('        </DataArray>\n')
-    output_file.write('        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(number_polys))
+    output_file.write(
+        '        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(
+            number_polys))
     output_file.write('        </DataArray>\n')
     output_file.write('      </Lines>\n')
 
     # <Strips>
     output_file.write('      <Strips>\n')
-    output_file.write('        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(number_polys - 1))
+    output_file.write(
+        '        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(
+            number_polys - 1))
     output_file.write('        </DataArray>\n')
-    output_file.write('        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(number_polys))
+    output_file.write(
+        '        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(
+            number_polys))
     output_file.write('        </DataArray>\n')
     output_file.write('      </Strips>\n')
 
     # <Polys>
     output_file.write('      <Polys>\n')
-    output_file.write('        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(number_polys - 1))
+    output_file.write(
+        '        <DataArray type="Int64" Name="connectivity" format="ascii" RangeMin="0" RangeMax="{}">\n'.format(
+            number_polys - 1))
     if (show_polys):
         polycount = 0
         for column_count in range(poly_size):
@@ -750,7 +735,8 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
                 temp_index = stride_value + row_count
                 if (polycount % 2) is 0:
                     output_file.write('          ')
-                output_file.write('{} {} {} {}'.format(temp_index, (temp_index + 1), (temp_index + matrix_size + 1), (temp_index + matrix_size)))
+                output_file.write('{} {} {} {}'.format(temp_index, (temp_index + 1), (temp_index + matrix_size + 1),
+                                                       (temp_index + matrix_size)))
                 if (polycount % 2) is 1:
                     output_file.write('\n')
                 else:
@@ -759,7 +745,9 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name,base_dir, log=False, zmax=-
         if (polycount % 2) is 1:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
-    output_file.write('        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(number_polys))
+    output_file.write(
+        '        <DataArray type="Int64" Name="offsets" format="ascii" RangeMin="1" RangeMax="{}">\n'.format(
+            number_polys))
     if (show_polys):
         for polycount in range(number_polys):
             if (polycount % 6) is 0:
@@ -788,14 +776,15 @@ def flat_param(parameter, weight_type='weight'):
     Concatenates a python array of numpy arrays into a single, flat numpy array.
     """
     if weight_type == 'weight':
-        return np.concatenate( [ar.cpu().flatten() for ar in parameter], axis=None)
+        return np.concatenate([ar.cpu().flatten() for ar in parameter], axis=None)
     elif weight_type == 'state':
-        return np.concatenate( [ar.cpu().flatten() for (k,ar) in parameter.items()], axis=None)
+        return np.concatenate([ar.cpu().flatten() for (k, ar) in parameter.items()], axis=None)
 
-def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion, weight_type = 'weight'):
+
+def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion, weight_type='weight'):
     dx, dy = direction[0], direction[1]
     matrix = [flat_param(dx), flat_param(dy)]
-    matrix= np.vstack(matrix)
+    matrix = np.vstack(matrix)
     matrix = matrix.T
 
     if weight_type == 'weight':
@@ -807,15 +796,15 @@ def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion
             checkpoint = torch.load(file)
             model.load_state_dict(checkpoint['state_dict'])
 
-            temp_weight= get_weights(model)
+            temp_weight = get_weights(model)
 
             temp_flat = flat_param(temp_weight)
-            b = temp_flat-origin_weight
-            coefs.append(np.hstack(np.linalg.lstsq(matrix,b,rcond=None)[0]))
+            b = temp_flat - origin_weight
+            coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
             acc, loss = test(model, dataloader, criterion)
             path_loss.append(loss)
             path_acc.append(acc)
-        
+
     elif weight_type == 'state':
         origin_state = flat_param(state, weight_type)
         coefs = []
@@ -825,11 +814,11 @@ def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion
             checkpoint = torch.load(file)
             model.load_state_dict(checkpoint['state_dict'])
 
-            temp_state= model.state_dict()
+            temp_state = model.state_dict()
 
             temp_flat = flat_param(temp_state, weight_type)
-            b = temp_flat-origin_state
-            coefs.append(np.hstack(np.linalg.lstsq(matrix,b,rcond=None)[0]))
+            b = temp_flat - origin_state
+            coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
             acc, loss = test(model, dataloader, criterion)
             path_loss.append(loss)
             path_acc.append(acc)
@@ -837,8 +826,24 @@ def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
 
+def get_model_grad_vec(model):
+    # Return the model grad as a vector
+
+    vec = []
+    for name, param in model.named_parameters():
+        vec.append(param.grad.detach().reshape(-1))
+    return torch.cat(vec, 0)
+
+
 def get_delta(model, dataloader, criterion):
+    model.train()
+    total_delta = []
 
-
-
-
+    for batch_id, (data, target) in enumerate(dataloader):
+        data, target = data.cuda(), target.cuda()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        batch_delta = get_model_grad_vec(model)
+        total_delta.append(batch_delta)
+    return total_delta

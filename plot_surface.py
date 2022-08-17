@@ -94,8 +94,8 @@ def main():
     print('begin plot')
 
     # plot_mult(model,origin_weight, origin_state, filesnames_1,filesnames_2, train_loader,criterion,save_path, args.plot_num, args.plot_ratio, args.direction_path)
-    plot_single(model, origin_weight, origin_state, filesnames_1, train_loader, criterion, save_path, args.plot_num,
-                args.plot_ratio, args.direction_path)
+    plot(model, origin_weight, origin_state, filesnames_1, train_loader, criterion, save_path, args.plot_num,
+                args.plot_ratio, args.direction_path, True)
 
 
 if __name__ == "__main__":
