@@ -846,4 +846,27 @@ def get_delta(model, dataloader, criterion):
         loss.backward()
         batch_delta = get_model_grad_vec(model)
         total_delta.append(batch_delta)
-    return total_delta
+    return torch.stack(total_delta, 0)
+
+
+def decomposition_delta(delta_direction, model, origin_weight):
+    origin_bias = flat_param(get_weights(model)) - flat_param(origin_weight)
+    origin_bias = torch.tensor(origin_bias).cuda()
+    check_delta = delta_direction[:2, :].mean(0)
+
+    project_delta = (torch.dot(check_delta, origin_bias))/(torch.dot(origin_bias, origin_bias))*origin_bias
+    max_d = max(project_delta)
+    norm = project_delta.norm()
+    de_delta = check_delta - project_delta
+
+    pass
+
+
+def set_weigth(model, weight, delta_weigth):
+
+
+
+def back_tracking_line_search(model, dataloader, criterion, delta_direction, alpha = 0.03, beta = 0.5):
+    init_t = 1
+    while True:
+        next_t = init_t*beta

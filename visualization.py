@@ -8,7 +8,7 @@ from operator import mod
 from statistics import mode
 import xdrlib
 from utils import create_random_direction, get_weights, eval_loss, test, h5_to_vtp, get_coefs, create_pca_direction, \
-    get_delta
+    get_delta, decomposition_delta
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -105,6 +105,7 @@ def plot(model, weight, state, filesnames, dataloader, criterion, save_path, N=5
         # --------update all the weight or state --------------------
         stime = time()
         delta_direction = get_delta(model, dataloader, criterion)
+        decomposition_delta(delta_direction,model, weight)
         acc, loss = test(model, dataloader, criterion)
         # print('cost: ', stime-time())
         losses.ravel()[ind] = loss
