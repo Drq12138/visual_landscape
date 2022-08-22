@@ -326,7 +326,12 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 
-def get_weights(net):
+def get_weight_list(net):
+    """
+    return weight of model
+    :param net:
+    :return: list, element of tensor
+    """
     return [p.data for p in net.parameters()]
 
 
@@ -396,57 +401,71 @@ def normalize_directions_for_states(direction, states, norm='filter', ignore='ig
             normalize_direction(d, w, norm)
 
 
-def create_random_direction(model, weight_type='weight', ignore='biasbn', norm='filter'):
-    # weights = get_weights(net) # a list of parameters.
+def create_random_direction(weight_list, weight_type='weight', ignore='biasbn', norm='filter'):
+    """
+    given model weight list, return random direction
+    :param weight_list:
+    :param weight_type: default weight
+    :param ignore:
+    :param norm:
+    :return: list of direction, element of tensor
+    """
+
     if weight_type == 'weight':
-        weights = get_weights(model)
-        direction = get_random_weights(weights)
-        normalize_directions_for_weights(direction, weights, norm, ignore)
-    elif weight_type == 'state':
-        states = model.state_dict()
-        direction = get_random_states(states)
-        normalize_directions_for_states(direction, states, norm, ignore)
-    return direction
+        direction_list = get_random_weights(weight_list)
+        normalize_directions_for_weights(direction_list, weight_list, norm, ignore)
+    # elif weight_type == 'state':
+    #     states = model.state_dict()
+    #     direction = get_random_states(states)
+    #     normalize_directions_for_states(direction, states, norm, ignore)
+    return direction_list
 
 
-def divide_param(vec, weight, weight_type='weight'):
+def divide_param(vec, weight_list, weight_type='weight'):
+    """
+    given flat vec, divide it according to weight
+    :param vec:
+    :param weight_list:
+    :param weight_type:
+    :return: list of tensor
+    """
     index = 0
     new_vec = []
     if weight_type == 'weight':
-        for w in weight:
+        for w in weight_list:
             new_vec.append(torch.tensor((vec[index:index + w.numel()])).view(w.size()).cuda())
             index += w.numel()
     elif weight_type == 'state':
-        for k, s in weight.items():
+        for k, s in weight_list.items():
             new_vec.append(torch.tensor((vec[index:index + s.numel()])).view(s.size()).cuda())
             index += s.numel()
 
     return new_vec
 
 
-def create_pca_direction(model, weight_type, filesnames, ignore='biasbn', norm='filter'):
+def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='biasbn', norm='filter'):
     if weight_type == 'weight':
-        weight = get_weights(model)
         mats = []
         for file in filesnames:
             checkpoint = torch.load(file)
             model.load_state_dict(checkpoint['state_dict'])
-            temp_weight = get_weights(model)
-            temp_flat = flat_param(temp_weight, weight_type)
-            mats.append(temp_flat)
+            temp_weight_list = get_weight_list(model)
+            temp_weight_flat = flat_param(temp_weight_list, weight_type)
+            mats.append(temp_weight_flat.cpu())
         mats = np.vstack(mats)
         mats_new = mats[:-1] - mats[-1]
 
         pca = PCA(n_components=2)
-        principalComponents = pca.fit_transform(mats_new.T)
-        x_direction = np.array(principalComponents[:, 0])
-        x_direction = divide_param(x_direction, weight)
-        y_direction = np.array(principalComponents[:, 1])
-        y_direction = divide_param(y_direction, weight)
-        normalize_directions_for_weights(x_direction, weight, norm, ignore)
-        normalize_directions_for_weights(y_direction, weight, norm, ignore)
+        pca.fit_transform(mats_new)
+        principalComponents = np.array(pca.components_)
+        x_direction_flat = np.array(principalComponents[0, :])
+        x_direction_list = divide_param(x_direction_flat, weight_list)
+        y_direction_flat = np.array(principalComponents[1, :])
+        y_direction_list = divide_param(y_direction_flat, weight_list)
+        normalize_directions_for_weights(x_direction_list, weight_list, norm, ignore)
+        normalize_directions_for_weights(y_direction_list, weight_list, norm, ignore)
 
-        return x_direction, y_direction
+        return x_direction_list, y_direction_list
     elif weight_type == 'state':
         states = model.state_dict()
         mats = []
@@ -461,10 +480,10 @@ def create_pca_direction(model, weight_type, filesnames, ignore='biasbn', norm='
         mats_new = mats[:-1] - mats[-1]
 
         pca = PCA(n_components=2)
-        principalComponents = pca.fit_transform(mats_new.T)
-        x_direction = np.array(principalComponents[:, 0])
+        principalComponents = pca.fit_transform(mats_new)
+        x_direction = np.array(principalComponents[0, :])
         x_direction = divide_param(x_direction, states, weight_type)
-        y_direction = np.array(principalComponents[:, 1])
+        y_direction = np.array(principalComponents[1, :])
         y_direction = divide_param(y_direction, states, weight_type)
         normalize_directions_for_states(x_direction, states, norm, ignore)
         normalize_directions_for_states(y_direction, states, norm, ignore)
@@ -773,57 +792,94 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
 
 def flat_param(parameter, weight_type='weight'):
     """
-    Concatenates a python array of numpy arrays into a single, flat numpy array.
+    given param list,return the flat one
+    :param parameter:
+    :param weight_type:
+    :return: tensor
     """
     if weight_type == 'weight':
-        return np.concatenate([ar.cpu().flatten() for ar in parameter], axis=None)
+        # return np.concatenate([ar.cpu().flatten() for ar in parameter], axis=None)
+        return torch.cat([ar.view(-1) for ar in parameter])
     elif weight_type == 'state':
         return np.concatenate([ar.cpu().flatten() for (k, ar) in parameter.items()], axis=None)
 
 
-def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion, weight_type='weight'):
-    dx, dy = direction[0], direction[1]
-    matrix = [flat_param(dx), flat_param(dy)]
+def cal_path(model, weight_list, filenames, direction, dataloader, criterion):
+    """
+    plot the path of training process
+    :param model:
+    :param weight_list:
+    :param filenames:
+    :param direction: list:[dx_list, dy_list]
+    :param dataloader:
+    :param criterion:
+    :return:
+    """
+    dx_list, dy_list = direction[0], direction[1]
+    matrix = [flat_param(dx_list).cpu(), flat_param(dy_list).cpu()]
     matrix = np.vstack(matrix)
     matrix = matrix.T
-
-    if weight_type == 'weight':
-        origin_weight = flat_param(weight, weight_type)
-        coefs = []
-        path_loss = []
-        path_acc = []
-        for file in tqdm(filesnames):
-            checkpoint = torch.load(file)
-            model.load_state_dict(checkpoint['state_dict'])
-
-            temp_weight = get_weights(model)
-
-            temp_flat = flat_param(temp_weight)
-            b = temp_flat - origin_weight
-            coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
-            acc, loss = test(model, dataloader, criterion)
-            path_loss.append(loss)
-            path_acc.append(acc)
-
-    elif weight_type == 'state':
-        origin_state = flat_param(state, weight_type)
-        coefs = []
-        path_loss = []
-        path_acc = []
-        for file in tqdm(filesnames):
-            checkpoint = torch.load(file)
-            model.load_state_dict(checkpoint['state_dict'])
-
-            temp_state = model.state_dict()
-
-            temp_flat = flat_param(temp_state, weight_type)
-            b = temp_flat - origin_state
-            coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
-            acc, loss = test(model, dataloader, criterion)
-            path_loss.append(loss)
-            path_acc.append(acc)
-
+    origin_weight_flat = flat_param(weight_list)
+    coefs = []
+    path_loss = []
+    path_acc = []
+    for file in tqdm(filenames):
+        checkpoint = torch.load(file)
+        model.load_state_dict(checkpoint['state_dict'])
+        temp_weight = get_weight_list(model)
+        temp_flat = flat_param(temp_weight)
+        b = temp_flat - origin_weight_flat
+        coefs.append(np.hstack(np.linalg.lstsq(matrix, b.cpu(), rcond=None)[0]))
+        acc, loss = test(model, dataloader, criterion)
+        path_loss.append(loss)
+        path_acc.append(acc)
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
+
+
+#
+# def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion, weight_type='weight'):
+#     dx, dy = direction[0], direction[1]
+#     matrix = [flat_param(dx), flat_param(dy)]
+#     matrix = np.vstack(matrix)
+#     matrix = matrix.T
+#
+#     if weight_type == 'weight':
+#         origin_weight = flat_param(weight, weight_type)
+#         coefs = []
+#         path_loss = []
+#         path_acc = []
+#         for file in tqdm(filesnames):
+#             checkpoint = torch.load(file)
+#             model.load_state_dict(checkpoint['state_dict'])
+#
+#             temp_weight = get_weight_list(model)
+#
+#             temp_flat = flat_param(temp_weight)
+#             b = temp_flat - origin_weight
+#             coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
+#             acc, loss = test(model, dataloader, criterion)
+#             path_loss.append(loss)
+#             path_acc.append(acc)
+#
+#     elif weight_type == 'state':
+#         origin_state = flat_param(state, weight_type)
+#         coefs = []
+#         path_loss = []
+#         path_acc = []
+#         for file in tqdm(filesnames):
+#             checkpoint = torch.load(file)
+#             model.load_state_dict(checkpoint['state_dict'])
+#
+#             temp_state = model.state_dict()
+#
+#             temp_flat = flat_param(temp_state, weight_type)
+#             b = temp_flat - origin_state
+#             coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
+#             acc, loss = test(model, dataloader, criterion)
+#             path_loss.append(loss)
+#             path_acc.append(acc)
+#
+#     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
 
 def get_model_grad_vec(model):
@@ -836,6 +892,13 @@ def get_model_grad_vec(model):
 
 
 def get_delta(model, dataloader, criterion):
+    """
+    given model at certain point, return grad vector
+    :param model:
+    :param dataloader:
+    :param criterion:
+    :return: [batch_num, param_sum] saved all the grad of each batch
+    """
     model.train()
     total_delta = []
 
@@ -850,11 +913,11 @@ def get_delta(model, dataloader, criterion):
 
 
 def decomposition_delta(delta_direction, model, origin_weight):
-    origin_bias = flat_param(get_weights(model)) - flat_param(origin_weight)
+    origin_bias = flat_param(get_weight_list(model)) - flat_param(origin_weight)
     origin_bias = torch.tensor(origin_bias).cuda()
     check_delta = delta_direction[:2, :].mean(0)
 
-    project_delta = (torch.dot(check_delta, origin_bias))/(torch.dot(origin_bias, origin_bias))*origin_bias
+    project_delta = (torch.dot(check_delta, origin_bias)) / (torch.dot(origin_bias, origin_bias)) * origin_bias
     max_d = max(project_delta)
     norm = project_delta.norm()
     de_delta = check_delta - project_delta
@@ -862,11 +925,13 @@ def decomposition_delta(delta_direction, model, origin_weight):
     pass
 
 
-def set_weigth(model, weight, delta_weigth):
+def set_weigth(model, weight_list):
+    for (p, w) in zip(model.parameters(), weight_list):
+        p.data = w
 
 
 
-def back_tracking_line_search(model, dataloader, criterion, delta_direction, alpha = 0.03, beta = 0.5):
-    init_t = 1
-    while True:
-        next_t = init_t*beta
+# def back_tracking_line_search(model, dataloader, criterion, delta_direction, alpha = 0.03, beta = 0.5):
+#     init_t = 1
+#     while True:
+#         next_t = init_t*beta

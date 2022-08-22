@@ -1,13 +1,13 @@
 import argparse
 import os
 
-from utils import get_model, get_weights, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
+from utils import get_model, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
 import torch
 import torch.nn as nn
 import numpy as np
-from visualization import get_direction
+from visualization import get_direction_list
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--optimizer', default='sgd')
     # parser.add_argument('--weight_type', default='weight')
     parser.add_argument('--direction_type', default='pca')
-    parser.add_argument('--save_dir', default='./../checkpoints/visualization')
+    parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
     parser.add_argument('--name', default='test_visualization')
     parser.add_argument('--save_direction_type', default='')
     parser.add_argument('--load_path', default='')
@@ -42,7 +42,6 @@ def main():
 
     # -----------model--------------------------
     model = get_model(args)
-    # weight = get_weights(model)
     if args.mult_gpu:
         model = torch.nn.DataParallel(model)
     model.cuda()
@@ -82,47 +81,42 @@ def main():
     final_checkpoint = os.path.join(save_path,
                                     'save_net_' + args.arch + '_' + str(args.epoch).zfill(len(str(args.epoch))) + '.pt')
     if os.path.isfile(final_checkpoint):
+        print('you have trained before, I will load the final checkpoint now')
         checkpoint = torch.load(final_checkpoint)
         model.load_state_dict(checkpoint['state_dict'])
-        print('you have trained before ...')
     else:
         torch.save({'epoch': 0, 'state_dict': model.state_dict()},
                    os.path.join(save_path, 'save_net_' + args.arch + '_' + str(0).zfill(len(str(args.epoch))) + '.pt'))
-        orig_train_loss = []
-        orig_test_acc = []
+        origin_train_loss = []
+        origin_test_acc = []
         origin_test_loss = []
         for epoch in range(args.epoch):
-            print("Epoch %i" % epoch)
-
             tloss = train_net(model, train_loader, optimizer, criterion, epoch)
             lr_scheduler.step()
-            orig_train_loss.append(tloss)
+            origin_train_loss.append(tloss)
             accu, loss = test(model, val_loader, criterion)
-            orig_test_acc.append(accu)
+            origin_test_acc.append(accu)
             origin_test_loss.append(loss)
-            print(accu)
+            print("train epoch {}/{}: train loss: {}, test loss: {}, test accuracy: {}".format(epoch + 1, args.epoch,
+                                                                                               tloss, loss, accu))
             torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
-                       os.path.join(save_path,'save_net_' + args.arch + '_' +
+                       os.path.join(save_path, 'save_net_' + args.arch + '_' +
                                     str(epoch + 1).zfill(len(str(args.epoch))) + '.pt'))
 
-        np.savez(os.path.join(save_path, 'save_net_' + args.arch + '_orig.npz'), orig_train_loss=orig_train_loss,
-                 origin_test_loss=origin_test_loss, origin_test_acc=orig_test_acc)
-        # np.save(os.path.join(save_path, 'save_net_' + args.arch + '_orig_test_acc.npy' ), orig_test_acc)
-
-    # weight = get_weights(model)
-
-    fileindices = np.linspace(0, args.epoch, args.epoch + 1)
-    filesnames = [save_path + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i in
-                  fileindices]
+        np.savez(os.path.join(save_path, 'save_net_' + args.arch + '_orig.npz'), origin_train_loss=origin_train_loss,
+                 origin_test_loss=origin_test_loss, origin_test_acc=origin_test_acc)
 
     # ----------------- save direction -------------------------
     if args.save_direction_type:
-        print('save type: ', args.save_direction_type)
-        direction = get_direction(model, args.direction_type, filesnames, args.save_direction_type)
+        fileindices = np.linspace(0, args.epoch, args.epoch + 1)
+        filesnames = [save_path + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i
+                      in fileindices]
+        print('save direction type: ', args.save_direction_type)
+        direction = get_direction_list(model, args.direction_type, filesnames, args.save_direction_type)
         torch.save({"direction": direction, "weigth_type": args.save_direction_type},
-                   os.path.join(save_path, 'direction.pt'))
+                   os.path.join(save_path, args.direction_type+'_direction.pt'))
 
-    print('finish')
+    print('-----------finish----------------')
 
 
 if __name__ == "__main__":

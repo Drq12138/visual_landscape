@@ -1,14 +1,9 @@
 import enum
-from html.entities import html5
-from importlib.resources import path
 from time import time
 from mpl_toolkits.mplot3d import Axes3D
 import os
-from operator import mod
-from statistics import mode
-import xdrlib
-from utils import create_random_direction, get_weights, eval_loss, test, h5_to_vtp, get_coefs, create_pca_direction, \
-    get_delta, decomposition_delta
+from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
+    decomposition_delta, set_weigth
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -18,14 +13,23 @@ from tqdm import tqdm
 import copy
 
 
-def get_direction(model, direction_type, filesnames, weight_type):
+def get_direction_list(model, direction_type, filesnames, weight_type):
+    """
+    given the model, return the list of direction based on weight or state, using pca or random method
+    :param model:
+    :param direction_type:
+    :param filesnames:
+    :param weight_type:
+    :return: list:[dx, dy]
+    """
+    weight_list = get_weight_list(model)
     if direction_type == 'random':
-        xdirection = create_random_direction(model, weight_type)
-        ydirection = create_random_direction(model, weight_type)
+        xdirection_list = create_random_direction(weight_list, weight_type)
+        ydirection_list = create_random_direction(weight_list, weight_type)
     elif direction_type == 'pca':
-        xdirection, ydirection = create_pca_direction(model, weight_type, filesnames)
+        xdirection_list, ydirection_list = create_pca_direction(model, weight_list, weight_type, filesnames)
 
-    return [xdirection, ydirection]
+    return [xdirection_list, ydirection_list]
 
 
 def plot_contour_trajectory(val, xcoord_mesh, ycoord_mesh, name, vmin=0.25, vmax=0.29, vlevel=0.003):
@@ -54,27 +58,62 @@ def plot_contour_trajectory(val, xcoord_mesh, ycoord_mesh, name, vmin=0.25, vmax
     pass
 
 
-def plot(model, weight, state, filesnames, dataloader, criterion, save_path, N=50, plot_ratio=0.5, direction_path='',
-         fix_coordinate=False):
-    direction_load = torch.load(direction_path)
+def plot_path(model, origin_weight_list, filesnames, dataloader, criterion, args):
+    direction_load = torch.load(args.direction_path)
+    direction = direction_load["direction"]
+    weight_type = direction_load["weigth_type"]
+    coefs, path_loss, path_acc = cal_path(model, origin_weight_list, filesnames, direction, dataloader, criterion)
+
+    coefs_x = coefs[:, 0][np.newaxis]
+    coefs_y = coefs[:, 1][np.newaxis]
+
+    return coefs_x, coefs_y, path_loss, path_acc, direction
+
+
+def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinates, ycoordinates, direction, args):
+    shape = (len(xcoordinates), len(ycoordinates))
+    losses = -np.ones(shape=shape)
+    accuracies = -np.ones(shape=shape)
+    inds = np.array(range(losses.size))
+    xcoord_mesh, ycoord_mesh = np.meshgrid(xcoordinates, ycoordinates)
+    s1 = xcoord_mesh.ravel()
+    s2 = ycoord_mesh.ravel()
+    coords = np.c_[s1, s2]
+
+    print('begin cal')
+    # --------------- get landscape data ----------------------------
+    for count, ind in enumerate(tqdm(inds)):
+        coord = coords[count]
+        dx = direction[0]
+        dy = direction[1]
+        change_weight_list = [w + d0 * coord[0] + d1 * coord[1] for (w, d0, d1) in zip(origin_weight_list, dx, dy)]
+        set_weigth(model, change_weight_list)
+        delta_direction = get_delta(model, dataloader, criterion)           # [batch_num, param_num]
+
+
+'''
+def plot(model, filesnames, dataloader, criterion, save_path, args, fix_coordinate=False):
+    origin_weight_list = get_weight_list(model)
+    origin_state = copy.deepcopy(model.state_dict())
+    direction_load = torch.load(args.direction_path)
     direction = direction_load["direction"]
     weight_type = direction_load["weigth_type"]
     if fix_coordinate:
-        xcoordinates = np.linspace(-0.5, 0.5, N)
-        ycoordinates = np.linspace(-0.5, 0.5, N)
+        xcoordinates = np.linspace(-0.5, 0.5, args.plot_num)
+        ycoordinates = np.linspace(-0.5, 0.5, args.plot_num)
     else:
-        coefs, path_loss, path_acc = get_coefs(model, weight, state, filesnames, direction, dataloader, criterion,
-                                               weight_type)
+        coefs, path_loss, path_acc = plot_path(model,origin_weight_list,filesnames,direction,dataloader,criterion)
+
         coefs_x = coefs[:, 0][np.newaxis]
         coefs_y = coefs[:, 1][np.newaxis]
 
         boundaries_x = max(coefs_x[0]) - min(coefs_x[0])
         boundaries_y = max(coefs_y[0]) - min(coefs_y[0])
 
-        xcoordinates = np.linspace(min(coefs_x[0]) - plot_ratio * boundaries_x,
-                                   max(coefs_x[0]) + plot_ratio * boundaries_x, N)
-        ycoordinates = np.linspace(min(coefs_y[0]) - plot_ratio * boundaries_y,
-                                   max(coefs_y[0]) + plot_ratio * boundaries_y, N)
+        xcoordinates = np.linspace(min(coefs_x[0]) - args.plot_ratio * boundaries_x,
+                                   max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
+        ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
+                                   max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
 
     shape = (len(xcoordinates), len(ycoordinates))
     losses = -np.ones(shape=shape)
@@ -203,3 +242,4 @@ def plot_mult(model, weight, state, filesnames_1, filesnames_2, dataloader, crit
     print('-------------')
 
     pass
+'''

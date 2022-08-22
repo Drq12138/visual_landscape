@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--optimizer', default='sgd')
     parser.add_argument('--direction_type', default='pca')
-    parser.add_argument('--save_dir', default='./../checkpoints/visualization')
+    parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
     parser.add_argument('--name', default='mul_test')
     parser.add_argument('--load_path', default='')
     parser.add_argument('--plt_path_one', default='')

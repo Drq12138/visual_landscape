@@ -1,18 +1,13 @@
 import argparse
-from ast import arg
-from enum import EnumMeta
 import os
-from statistics import mode
 import copy
-from numpy import save
-from utils import get_model, get_weights, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
-from torchvision import datasets, transforms
+from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
 import torch
 import torch.nn as nn
 import numpy as np
-from visualization import plot, plot_mult
+from visualization import plot_path
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 
 def main():
@@ -30,7 +25,7 @@ def main():
     parser.add_argument('--mult_gpu', action='store_true')
     parser.add_argument('--lr', default=0.04, type=float)
 
-    parser.add_argument('--save_dir', default='./../checkpoints/visualization')
+    parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
     parser.add_argument('--name', default='mul_test')
     parser.add_argument('--load_path', default='')
     parser.add_argument('--plt_path_one', default='')
@@ -56,12 +51,11 @@ def main():
     model.cuda()
 
     # -------------resume------------------------
-    print("=> loading checkpoint '{}'".format(args.load_path))
-    checkpoint = torch.load(args.load_path)
-    model.load_state_dict(checkpoint['state_dict'])
-    origin_weight = get_weights(model)
-    origin_state = copy.deepcopy(model.state_dict())
-
+    if args.load_path:
+        print("=> loading checkpoint '{}'".format(args.load_path))
+        checkpoint = torch.load(args.load_path)
+        model.load_state_dict(checkpoint['state_dict'])
+    origin_weight_list = get_weight_list(model)
     torch.backends.cudnn.benchmark = True
 
     criterion = nn.CrossEntropyLoss().cuda()
@@ -81,21 +75,18 @@ def main():
             load_plt_path_2 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i in
             fileindices]
 
-    args.xmin, args.xmax, args.xnum = [float(a) for a in args.x.split(':')]
-    args.xnum = int(args.xnum)
-    args.ymin, args.ymax, args.ynum = [float(a) for a in args.y.split(':')]
-    args.ynum = int(args.ynum)
-
-    # xcoordinates = np.linspace(args.xmin, args.xmax, num=args.xnum)
-    # ycoordinates = np.linspace(args.ymin, args.ymax, num=args.ynum)
-    # ----------------------------
-    # get the file names during training process
-
     print('begin plot')
+    coefs_x, coefs_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filesnames_1, train_loader,
+                                                                 criterion, args)
+    np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
+             xcoord_mesh=coefs_x, ycoord_mesh=coefs_y)
+    boundaries_x = max(coefs_x[0]) - min(coefs_x[0])
+    boundaries_y = max(coefs_y[0]) - min(coefs_y[0])
 
-    # plot_mult(model,origin_weight, origin_state, filesnames_1,filesnames_2, train_loader,criterion,save_path, args.plot_num, args.plot_ratio, args.direction_path)
-    plot(model, origin_weight, origin_state, filesnames_1, train_loader, criterion, save_path, args.plot_num,
-                args.plot_ratio, args.direction_path, True)
+    xcoordinates = np.linspace(min(coefs_x[0]) - args.plot_ratio * boundaries_x,
+                               max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
+    ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
+                               max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
 
 
 if __name__ == "__main__":
