@@ -3,7 +3,7 @@ from time import time
 from mpl_toolkits.mplot3d import Axes3D
 import os
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weigth
+    decomposition_delta, set_weigth, back_tracking_line_search
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -74,6 +74,7 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinate
     shape = (len(xcoordinates), len(ycoordinates))
     losses = -np.ones(shape=shape)
     accuracies = -np.ones(shape=shape)
+    search_count_sum = []
     inds = np.array(range(losses.size))
     xcoord_mesh, ycoord_mesh = np.meshgrid(xcoordinates, ycoordinates)
     s1 = xcoord_mesh.ravel()
@@ -88,7 +89,17 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinate
         dy = direction[1]
         change_weight_list = [w + d0 * coord[0] + d1 * coord[1] for (w, d0, d1) in zip(origin_weight_list, dx, dy)]
         set_weigth(model, change_weight_list)
-        delta_direction = get_delta(model, dataloader, criterion)           # [batch_num, param_num]
+        delta_direction, temp_loss = get_delta(model, dataloader, criterion)  # [batch_num, param_num]
+        delta_direction_vector = delta_direction[:3, :].mean(0)
+        search_direction_vector = decomposition_delta(delta_direction_vector, change_weight_list, origin_weight_list)
+
+        step_t, final_loss, new_weight_list, search_count = back_tracking_line_search(model, dataloader, criterion,
+                                                                                      change_weight_list, temp_loss,
+                                                                                      search_direction_vector,
+                                                                                      delta_direction_vector)
+        losses.ravel()[ind] = final_loss
+        search_count_sum.append(search_count)
+    return losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum
 
 
 '''

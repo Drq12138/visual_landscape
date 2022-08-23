@@ -424,8 +424,8 @@ def create_random_direction(weight_list, weight_type='weight', ignore='biasbn', 
 def divide_param(vec, weight_list, weight_type='weight'):
     """
     given flat vec, divide it according to weight
-    :param vec:
-    :param weight_list:
+    :param vec: tensor
+    :param weight_list: list of tensor
     :param weight_type:
     :return: list of tensor
     """
@@ -433,7 +433,7 @@ def divide_param(vec, weight_list, weight_type='weight'):
     new_vec = []
     if weight_type == 'weight':
         for w in weight_list:
-            new_vec.append(torch.tensor((vec[index:index + w.numel()])).view(w.size()).cuda())
+            new_vec.append((vec[index:index + w.numel()]).view(w.size()))
             index += w.numel()
     elif weight_type == 'state':
         for k, s in weight_list.items():
@@ -458,9 +458,9 @@ def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='bi
         pca = PCA(n_components=2)
         pca.fit_transform(mats_new)
         principalComponents = np.array(pca.components_)
-        x_direction_flat = np.array(principalComponents[0, :])
+        x_direction_flat = torch.tensor(principalComponents[0, :])
         x_direction_list = divide_param(x_direction_flat, weight_list)
-        y_direction_flat = np.array(principalComponents[1, :])
+        y_direction_flat = torch.tensor(principalComponents[1, :])
         y_direction_list = divide_param(y_direction_flat, weight_list)
         normalize_directions_for_weights(x_direction_list, weight_list, norm, ignore)
         normalize_directions_for_weights(y_direction_list, weight_list, norm, ignore)
@@ -508,7 +508,7 @@ def train_net(model, train_loader, optimizer, criterion, epoch):
 
 
 def test(model, test_loader, criterion):
-    model.cuda().eval()
+    model.eval()
     accuracys = AverageMeter()
     losses = AverageMeter()
     with torch.no_grad():
@@ -901,6 +901,7 @@ def get_delta(model, dataloader, criterion):
     """
     model.train()
     total_delta = []
+    losses = AverageMeter()
 
     for batch_id, (data, target) in enumerate(dataloader):
         data, target = data.cuda(), target.cuda()
@@ -909,18 +910,21 @@ def get_delta(model, dataloader, criterion):
         loss.backward()
         batch_delta = get_model_grad_vec(model)
         total_delta.append(batch_delta)
-    return torch.stack(total_delta, 0)
+        losses.update(loss.item(), data.size(0))
+    return torch.stack(total_delta, 0), losses.avg
 
 
-def decomposition_delta(delta_direction, model, origin_weight):
-    origin_bias = flat_param(get_weight_list(model)) - flat_param(origin_weight)
+def decomposition_delta(delta_direction_vector, temp_weight_list, origin_weight):
+    origin_bias = flat_param(temp_weight_list) - flat_param(origin_weight)
     origin_bias = torch.tensor(origin_bias).cuda()
-    check_delta = delta_direction[:2, :].mean(0)
 
-    project_delta = (torch.dot(check_delta, origin_bias)) / (torch.dot(origin_bias, origin_bias)) * origin_bias
-    max_d = max(project_delta)
-    norm = project_delta.norm()
-    de_delta = check_delta - project_delta
+    project_delta = (torch.dot(delta_direction_vector, origin_bias)) / (
+        torch.dot(origin_bias, origin_bias)) * origin_bias
+    # max_d = max(project_delta)
+    # norm = project_delta.norm()
+    search_direction_vector = project_delta - delta_direction_vector
+
+    return search_direction_vector
 
     pass
 
@@ -930,8 +934,38 @@ def set_weigth(model, weight_list):
         p.data = w
 
 
+# def cal_loss_direction(model, dataloader, criterion, temp_weight_list, search_direction_vector, t):
+#     search_direction_list = divide_param(search_direction_vector, temp_weight_list)
+#     for (p, w, s) in zip(model.parameters(), temp_weight_list, search_direction_list):
+#         p.data = w + t * s.type_as(w)
+#
+#     acc, loss = test(model, dataloader, criterion)
+#     return acc, loss
+#
 
-# def back_tracking_line_search(model, dataloader, criterion, delta_direction, alpha = 0.03, beta = 0.5):
-#     init_t = 1
-#     while True:
-#         next_t = init_t*beta
+def cal_direction_weight(temp_weight_list, search_direction_vector, t):
+    new_weight_list = []
+    search_direction_list = divide_param(search_direction_vector, temp_weight_list)
+    for (w, s) in zip(temp_weight_list, search_direction_list):
+        new_weight_list.append(w + t * s.type_as(w))
+
+    return new_weight_list
+
+
+def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
+                              delta_direction_vector, alpha=0.5,
+                              beta=0.5):
+    bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
+    last_t = 0.2
+    count = 0
+    while True:
+        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t)
+        set_weigth(model, new_weight_list)
+        acc, new_loss = test(model, dataloader, criterion)
+        count += 1
+        if (new_loss < temp_loss + alpha * last_t * bias_dot) or (count > 10):
+            break
+
+        last_t = last_t * beta
+
+    return last_t, new_loss, new_weight_list, count

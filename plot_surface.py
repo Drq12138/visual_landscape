@@ -5,9 +5,9 @@ from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMet
 import torch
 import torch.nn as nn
 import numpy as np
-from visualization import plot_path
+from visualization import plot_path, plot_landscape
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 
 def main():
@@ -76,6 +76,10 @@ def main():
             fileindices]
 
     print('begin plot')
+
+
+
+
     coefs_x, coefs_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filesnames_1, train_loader,
                                                                  criterion, args)
     np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
@@ -87,6 +91,13 @@ def main():
                                max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
     ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
                                max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
+
+    losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum = plot_landscape(model, origin_weight_list,
+                                                                                    train_loader, criterion,
+                                                                                    xcoordinates, ycoordinates,
+                                                                                    direction, args)
+    np.savez(os.path.join(save_path, 'save_landscape_val.npz'), losses=losses, accuracies=accuracies,
+             xcoord_mesh=xcoord_mesh, ycoord_mesh=ycoord_mesh, search_count = search_count_sum)
 
 
 if __name__ == "__main__":
