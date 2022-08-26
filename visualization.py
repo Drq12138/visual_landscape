@@ -3,7 +3,7 @@ from time import time
 from mpl_toolkits.mplot3d import Axes3D
 import os
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weigth, back_tracking_line_search
+    decomposition_delta, set_weigth, back_tracking_line_search, forward_search
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -72,10 +72,11 @@ def plot_path(model, origin_weight_list, filesnames, dataloader, criterion, args
 
 def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinates, ycoordinates, direction, args):
     shape = (len(xcoordinates), len(ycoordinates))
-    losses = -np.ones(shape=shape)
+    origin_losses = -np.ones(shape=shape)
+    new_losses = -np.ones(shape=shape)
     accuracies = -np.ones(shape=shape)
     search_count_sum = []
-    inds = np.array(range(losses.size))
+    inds = np.array(range(new_losses.size))
     xcoord_mesh, ycoord_mesh = np.meshgrid(xcoordinates, ycoordinates)
     s1 = xcoord_mesh.ravel()
     s2 = ycoord_mesh.ravel()
@@ -93,13 +94,18 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinate
         delta_direction_vector = delta_direction[:3, :].mean(0)
         search_direction_vector = decomposition_delta(delta_direction_vector, change_weight_list, origin_weight_list)
 
-        step_t, final_loss, new_weight_list, search_count = back_tracking_line_search(model, dataloader, criterion,
+        # step_t, final_loss, new_weight_list, search_count = back_tracking_line_search(model, dataloader, criterion,
+        #                                                                               change_weight_list, temp_loss,
+        #                                                                               search_direction_vector,
+        #                                                                               delta_direction_vector)
+        step_t, final_loss, new_weight_list = forward_search(model, dataloader, criterion,
                                                                                       change_weight_list, temp_loss,
                                                                                       search_direction_vector,
                                                                                       delta_direction_vector)
-        losses.ravel()[ind] = final_loss
+        new_losses.ravel()[ind] = final_loss
+        origin_losses.ravel()[ind] = temp_loss
         search_count_sum.append(search_count)
-    return losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum
+    return origin_losses , new_losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum
 
 
 '''

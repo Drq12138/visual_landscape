@@ -7,8 +7,7 @@ import torch.nn as nn
 import numpy as np
 from visualization import plot_path, plot_landscape
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 def main():
     parser = argparse.ArgumentParser(description='can plot weight or state')
@@ -19,10 +18,11 @@ def main():
     parser.add_argument('--randomseed', default=1, type=int)
     parser.add_argument('--batch_size', default=1024, type=int)
     parser.add_argument('--epoch', default=100, type=int)
-    parser.add_argument('--plot_num', default=50, type=int)
+    parser.add_argument('--plot_num', default=10, type=int)
     parser.add_argument('--plot_ratio', default=0.5, type=float)
     parser.add_argument('--smalldatasets', default=None, type=float)
     parser.add_argument('--mult_gpu', action='store_true')
+    parser.add_argument('--fix_coor', action='store_true')
     parser.add_argument('--lr', default=0.04, type=float)
 
     parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
@@ -76,28 +76,34 @@ def main():
             fileindices]
 
     print('begin plot')
+    if args.fix_coor:
+        direction_load = torch.load(args.direction_path)
+        direction = direction_load["direction"]
+        xcoordinates = np.linspace(-0.5, 0.5, args.plot_num)
+        ycoordinates = np.linspace(-0.5, 0.5, args.plot_num)
+    else:
+        coefs_x, coefs_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filesnames_1, train_loader,
+                                                                     criterion, args)
+        np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
+                 xcoord_mesh=coefs_x, ycoord_mesh=coefs_y)
+        boundaries_x = max(coefs_x[0]) - min(coefs_x[0])
+        boundaries_y = max(coefs_y[0]) - min(coefs_y[0])
 
+        xcoordinates = np.linspace(min(coefs_x[0]) - args.plot_ratio * boundaries_x,
+                                   max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
+        ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
+                                   max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
 
+    origin_loss, new_loss, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum = plot_landscape(model,
+                                                                                                   origin_weight_list,
+                                                                                                   train_loader,
+                                                                                                   criterion,
+                                                                                                   xcoordinates,
+                                                                                                   ycoordinates,
+                                                                                                   direction, args)
 
-
-    coefs_x, coefs_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filesnames_1, train_loader,
-                                                                 criterion, args)
-    np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
-             xcoord_mesh=coefs_x, ycoord_mesh=coefs_y)
-    boundaries_x = max(coefs_x[0]) - min(coefs_x[0])
-    boundaries_y = max(coefs_y[0]) - min(coefs_y[0])
-
-    xcoordinates = np.linspace(min(coefs_x[0]) - args.plot_ratio * boundaries_x,
-                               max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
-    ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
-                               max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
-
-    losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum = plot_landscape(model, origin_weight_list,
-                                                                                    train_loader, criterion,
-                                                                                    xcoordinates, ycoordinates,
-                                                                                    direction, args)
-    np.savez(os.path.join(save_path, 'save_landscape_val.npz'), losses=losses, accuracies=accuracies,
-             xcoord_mesh=xcoord_mesh, ycoord_mesh=ycoord_mesh, search_count = search_count_sum)
+    np.savez(os.path.join(save_path, 'save_landscape_val.npz'), origin_losses=origin_loss, new_loss=new_loss,
+             accuracies=accuracies, xcoord_mesh=xcoord_mesh, ycoord_mesh=ycoord_mesh, search_count=search_count_sum)
 
 
 if __name__ == "__main__":

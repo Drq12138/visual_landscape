@@ -934,15 +934,6 @@ def set_weigth(model, weight_list):
         p.data = w
 
 
-# def cal_loss_direction(model, dataloader, criterion, temp_weight_list, search_direction_vector, t):
-#     search_direction_list = divide_param(search_direction_vector, temp_weight_list)
-#     for (p, w, s) in zip(model.parameters(), temp_weight_list, search_direction_list):
-#         p.data = w + t * s.type_as(w)
-#
-#     acc, loss = test(model, dataloader, criterion)
-#     return acc, loss
-#
-
 def cal_direction_weight(temp_weight_list, search_direction_vector, t):
     new_weight_list = []
     search_direction_list = divide_param(search_direction_vector, temp_weight_list)
@@ -969,3 +960,24 @@ def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, te
         last_t = last_t * beta
 
     return last_t, new_loss, new_weight_list, count
+
+
+def forward_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
+                   delta_direction_vector, lr=0.04):
+    last_t = 0
+    best_loss = np.inf
+    while True:
+        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t+lr)
+        set_weigth(model, new_weight_list)
+        acc, new_loss = test(model, dataloader, criterion)
+        if new_loss < best_loss:
+            best_loss = new_loss
+            last_t+=lr
+        else:
+            break
+
+    return last_t, best_loss, new_weight_list
+
+
+
+

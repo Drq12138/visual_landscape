@@ -47,20 +47,21 @@ for name in name_list:
 
 def main():
     parser = argparse.ArgumentParser(description='can plot based on saved data')
-    parser.add_argument('--name', default='plot_2')
+    parser.add_argument('--name', default='test_all')
     parser.add_argument('--base_dir', default='/home/DiskB/rqding/checkpoints_0820/visualization/')
     args = parser.parse_args()
     print(args)
 
-    data = np.load(os.path.join(args.base_dir, args.name, 'save_path_val.npz'))
+    data = np.load(os.path.join(args.base_dir, args.name, 'save_landscape_val.npz'))
 
     losses = data["losses"]
     accuracies = data["accuracies"]
     xcoord_mesh = data["xcoord_mesh"]
     ycoord_mesh = data["ycoord_mesh"]
+    search_count = data["search_count"]
 
     h5_to_vtp(losses, xcoord_mesh, ycoord_mesh, args.name + '_loss',
-              os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', 'save_only_path'), log=True, zmax=-1,
+              os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1,
               interp=-1, show_points=True, show_polys=False)
 
 
