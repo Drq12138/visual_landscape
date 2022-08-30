@@ -113,8 +113,8 @@ def main():
                       in fileindices]
         print('save direction type: ', args.save_direction_type)
         direction = get_direction_list(model, args.direction_type, filesnames, args.save_direction_type)
-        torch.save({"direction": direction, "weigth_type": args.save_direction_type},
-                   os.path.join(save_path, args.direction_type+'_direction.pt'))
+        torch.save({"direction": direction, "weight_type": args.save_direction_type},
+                   os.path.join(save_path, args.direction_type+'_direction_revised.pt'))
 
     print('-----------finish----------------')
 

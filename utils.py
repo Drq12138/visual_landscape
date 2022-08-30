@@ -458,9 +458,10 @@ def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='bi
         pca = PCA(n_components=2)
         pca.fit_transform(mats_new)
         principalComponents = np.array(pca.components_)
-        x_direction_flat = torch.tensor(principalComponents[0, :])
+        # principalComponents = pca.fit_transform(mats_new.T)
+        x_direction_flat = torch.tensor(principalComponents[0, :]).cuda()
         x_direction_list = divide_param(x_direction_flat, weight_list)
-        y_direction_flat = torch.tensor(principalComponents[1, :])
+        y_direction_flat = torch.tensor(principalComponents[1, :]).cuda()
         y_direction_list = divide_param(y_direction_flat, weight_list)
         normalize_directions_for_weights(x_direction_list, weight_list, norm, ignore)
         normalize_directions_for_weights(y_direction_list, weight_list, norm, ignore)
@@ -899,7 +900,7 @@ def get_delta(model, dataloader, criterion):
     :param criterion:
     :return: [batch_num, param_sum] saved all the grad of each batch
     """
-    model.train()
+    model.eval()
     total_delta = []
     losses = AverageMeter()
 
@@ -937,6 +938,7 @@ def set_weigth(model, weight_list):
 def cal_direction_weight(temp_weight_list, search_direction_vector, t):
     new_weight_list = []
     search_direction_list = divide_param(search_direction_vector, temp_weight_list)
+    normalize_directions_for_weights(search_direction_list, temp_weight_list)
     for (w, s) in zip(temp_weight_list, search_direction_list):
         new_weight_list.append(w + t * s.type_as(w))
 
@@ -944,40 +946,44 @@ def cal_direction_weight(temp_weight_list, search_direction_vector, t):
 
 
 def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
-                              delta_direction_vector, alpha=0.5,
-                              beta=0.5):
-    bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
-    last_t = 0.2
-    count = 0
+                              delta_direction_vector, alpha=0.5, beta=0.5):
+    # bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
+    last_t = 0.008
+    best_loss = np.inf
+    search_count = 0
     while True:
         new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t)
         set_weigth(model, new_weight_list)
-        acc, new_loss = test(model, dataloader, criterion)
-        count += 1
-        if (new_loss < temp_loss + alpha * last_t * bias_dot) or (count > 10):
+        new_acc, new_loss = test(model, dataloader, criterion)
+        search_count += 1
+        if (new_loss > best_loss) or (search_count > 10):
             break
+        # if (new_loss < temp_loss + alpha * last_t * bias_dot) or (count > 10):
+        #     break
+        else:
+            best_loss = new_loss
+            best_acc = new_acc
+            last_t = last_t * beta
 
-        last_t = last_t * beta
-
-    return last_t, new_loss, new_weight_list, count
+    return last_t, best_loss, best_acc, new_weight_list, search_count
 
 
 def forward_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
-                   delta_direction_vector, lr=0.04):
+                   delta_direction_vector, lr=1e-4):
     last_t = 0
     best_loss = np.inf
+
+    search_count = 0
     while True:
-        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t+lr)
+        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t + lr)
         set_weigth(model, new_weight_list)
-        acc, new_loss = test(model, dataloader, criterion)
-        if new_loss < best_loss:
-            best_loss = new_loss
-            last_t+=lr
-        else:
+        new_acc, new_loss = test(model, dataloader, criterion)
+        search_count += 1
+        if (new_loss > best_loss) or (search_count > 10):
             break
+        else:
+            best_loss = new_loss
+            best_acc = new_acc
+            last_t += lr
 
-    return last_t, best_loss, new_weight_list
-
-
-
-
+    return last_t, best_acc, best_loss, search_count

@@ -9,6 +9,7 @@ from visualization import plot_path, plot_landscape
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
+
 def main():
     parser = argparse.ArgumentParser(description='can plot weight or state')
     parser.add_argument('--arch', default='resnet20')
@@ -18,11 +19,13 @@ def main():
     parser.add_argument('--randomseed', default=1, type=int)
     parser.add_argument('--batch_size', default=1024, type=int)
     parser.add_argument('--epoch', default=100, type=int)
-    parser.add_argument('--plot_num', default=10, type=int)
+    parser.add_argument('--plot_num', default=30, type=int)
     parser.add_argument('--plot_ratio', default=0.5, type=float)
     parser.add_argument('--smalldatasets', default=None, type=float)
     parser.add_argument('--mult_gpu', action='store_true')
     parser.add_argument('--fix_coor', action='store_true')
+    parser.add_argument('--back_track_loss', action='store_true')
+    parser.add_argument('--forward_search_loss', action='store_true')
     parser.add_argument('--lr', default=0.04, type=float)
 
     parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
@@ -63,47 +66,52 @@ def main():
     save_path = os.path.join(args.save_dir, args.name)
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
-    fileindices = np.linspace(0, args.epoch, args.epoch + 1)
+    file_index = np.linspace(0, args.epoch, args.epoch + 1)
 
     load_plt_path_1 = os.path.join(args.save_dir, args.plt_path_one)
-    filesnames_1 = [load_plt_path_1 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt'
-                    for i in fileindices]
+    filenames_1 = [load_plt_path_1 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt'
+                   for i in file_index]
 
     if args.plt_path_two:
         load_plt_path_2 = os.path.join(args.save_dir, args.plt_path_two)
-        filesnames_2 = [
+        filenames_2 = [
             load_plt_path_2 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i in
-            fileindices]
+            file_index]
 
     print('begin plot')
     if args.fix_coor:
         direction_load = torch.load(args.direction_path)
         direction = direction_load["direction"]
-        xcoordinates = np.linspace(-0.5, 0.5, args.plot_num)
-        ycoordinates = np.linspace(-0.5, 0.5, args.plot_num)
+        x_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
+        y_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
     else:
-        coefs_x, coefs_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filesnames_1, train_loader,
-                                                                     criterion, args)
+        path_x, path_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filenames_1, train_loader,
+                                                                   criterion, args)
         np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
-                 xcoord_mesh=coefs_x, ycoord_mesh=coefs_y)
-        boundaries_x = max(coefs_x[0]) - min(coefs_x[0])
-        boundaries_y = max(coefs_y[0]) - min(coefs_y[0])
+                 xcoord_mesh=path_x, ycoord_mesh=path_y)
+        boundaries_x = max(path_x[0]) - min(path_x[0])
+        boundaries_y = max(path_y[0]) - min(path_y[0])
 
-        xcoordinates = np.linspace(min(coefs_x[0]) - args.plot_ratio * boundaries_x,
-                                   max(coefs_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
-        ycoordinates = np.linspace(min(coefs_y[0]) - args.plot_ratio * boundaries_y,
-                                   max(coefs_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
+        x_coordinate = np.linspace(min(path_x[0]) - args.plot_ratio * boundaries_x,
+                                   max(path_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
+        y_coordinate = np.linspace(min(path_y[0]) - args.plot_ratio * boundaries_y,
+                                   max(path_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
 
-    origin_loss, new_loss, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum = plot_landscape(model,
-                                                                                                   origin_weight_list,
-                                                                                                   train_loader,
-                                                                                                   criterion,
-                                                                                                   xcoordinates,
-                                                                                                   ycoordinates,
-                                                                                                   direction, args)
+    origin_result, back_result, forward_result, [x_coord_grid, y_coord_grid] = plot_landscape(model,
+                                                                                              origin_weight_list,
+                                                                                              train_loader,
+                                                                                              criterion,
+                                                                                              x_coordinate,
+                                                                                              y_coordinate,
+                                                                                              direction,
+                                                                                              args)
+    torch.save({'origin_result': origin_result, 'back_result': back_result, 'forward_result': forward_result,
+                'x_coord_grid': x_coord_grid, 'y_coord_grid': y_coord_grid},
+               os.path.join(save_path, 'save_landscape_val.pt'))
 
-    np.savez(os.path.join(save_path, 'save_landscape_val.npz'), origin_losses=origin_loss, new_loss=new_loss,
-             accuracies=accuracies, xcoord_mesh=xcoord_mesh, ycoord_mesh=ycoord_mesh, search_count=search_count_sum)
+    # np.savez(os.path.join(save_path, 'save_landscape_val.npz'), origin_losses=origin_loss, new_loss=new_loss,
+    #          accuracies=accuracies, xcoord_mesh=x_coord_grid, ycoord_mesh=y_coord_grid,
+    #          search_count=search_count_sum)
 
 
 if __name__ == "__main__":

@@ -1,35 +1,31 @@
-import enum
-from time import time
 from mpl_toolkits.mplot3d import Axes3D
-import os
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weigth, back_tracking_line_search, forward_search
+    decomposition_delta, set_weigth, back_tracking_line_search, forward_search, test
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 import seaborn as sns
 from matplotlib import cm
 from tqdm import tqdm
-import copy
 
 
-def get_direction_list(model, direction_type, filesnames, weight_type):
+def get_direction_list(model, direction_type, filenames, weight_type):
     """
     given the model, return the list of direction based on weight or state, using pca or random method
     :param model:
     :param direction_type:
-    :param filesnames:
+    :param filenames:
     :param weight_type:
     :return: list:[dx, dy]
     """
     weight_list = get_weight_list(model)
     if direction_type == 'random':
-        xdirection_list = create_random_direction(weight_list, weight_type)
-        ydirection_list = create_random_direction(weight_list, weight_type)
+        x_direction_list = create_random_direction(weight_list, weight_type)
+        y_direction_list = create_random_direction(weight_list, weight_type)
     elif direction_type == 'pca':
-        xdirection_list, ydirection_list = create_pca_direction(model, weight_list, weight_type, filesnames)
+        x_direction_list, y_direction_list = create_pca_direction(model, weight_list, weight_type, filenames)
 
-    return [xdirection_list, ydirection_list]
+    return [x_direction_list, y_direction_list]
 
 
 def plot_contour_trajectory(val, xcoord_mesh, ycoord_mesh, name, vmin=0.25, vmax=0.29, vlevel=0.003):
@@ -58,54 +54,91 @@ def plot_contour_trajectory(val, xcoord_mesh, ycoord_mesh, name, vmin=0.25, vmax
     pass
 
 
-def plot_path(model, origin_weight_list, filesnames, dataloader, criterion, args):
+def plot_path(model, origin_weight_list, filenames, dataloader, criterion, args):
     direction_load = torch.load(args.direction_path)
     direction = direction_load["direction"]
-    weight_type = direction_load["weigth_type"]
-    coefs, path_loss, path_acc = cal_path(model, origin_weight_list, filesnames, direction, dataloader, criterion)
+    # weight_type = direction_load["weight_type"]
+    path_coordinate, path_loss, path_acc = cal_path(model, origin_weight_list, filenames, direction, dataloader,
+                                                    criterion)
 
-    coefs_x = coefs[:, 0][np.newaxis]
-    coefs_y = coefs[:, 1][np.newaxis]
+    path_x = path_coordinate[:, 0][np.newaxis]
+    path_y = path_coordinate[:, 1][np.newaxis]
 
-    return coefs_x, coefs_y, path_loss, path_acc, direction
+    return path_x, path_y, path_loss, path_acc, direction
 
 
-def plot_landscape(model, origin_weight_list, dataloader, criterion, xcoordinates, ycoordinates, direction, args):
-    shape = (len(xcoordinates), len(ycoordinates))
+def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinate, y_coordinate, direction, args):
+    shape = (len(x_coordinate), len(y_coordinate))
+
     origin_losses = -np.ones(shape=shape)
-    new_losses = -np.ones(shape=shape)
-    accuracies = -np.ones(shape=shape)
-    search_count_sum = []
-    inds = np.array(range(new_losses.size))
-    xcoord_mesh, ycoord_mesh = np.meshgrid(xcoordinates, ycoordinates)
-    s1 = xcoord_mesh.ravel()
-    s2 = ycoord_mesh.ravel()
+    back_track_losses = -np.ones(shape=shape)
+    forward_search_losses = -np.ones(shape=shape)
+
+    origin_accuracies = -np.ones(shape=shape)
+    back_track_accuracies = -np.ones(shape=shape)
+    forward_search_accuracies = -np.ones(shape=shape)
+
+    back_track_search_count_sum = -np.ones(shape=shape)
+    forward_search_count_sum = -np.ones(shape=shape)
+
+    flat_index = np.array(range(origin_losses.size))
+    x_coord_grid, y_coord_grid = np.meshgrid(x_coordinate, y_coordinate)
+    s1 = x_coord_grid.ravel()
+    s2 = y_coord_grid.ravel()
     coords = np.c_[s1, s2]
 
     print('begin cal')
     # --------------- get landscape data ----------------------------
-    for count, ind in enumerate(tqdm(inds)):
+    for count, ind in enumerate(tqdm(flat_index)):
         coord = coords[count]
         dx = direction[0]
         dy = direction[1]
-        change_weight_list = [w + d0 * coord[0] + d1 * coord[1] for (w, d0, d1) in zip(origin_weight_list, dx, dy)]
-        set_weigth(model, change_weight_list)
-        delta_direction, temp_loss = get_delta(model, dataloader, criterion)  # [batch_num, param_num]
-        delta_direction_vector = delta_direction[:3, :].mean(0)
-        search_direction_vector = decomposition_delta(delta_direction_vector, change_weight_list, origin_weight_list)
+        temp_weight_list = [w + d0 * coord[0] + d1 * coord[1] for (w, d0, d1) in zip(origin_weight_list, dx, dy)]
+        # temp_weight_list = origin_weight_list
 
-        # step_t, final_loss, new_weight_list, search_count = back_tracking_line_search(model, dataloader, criterion,
-        #                                                                               change_weight_list, temp_loss,
-        #                                                                               search_direction_vector,
-        #                                                                               delta_direction_vector)
-        step_t, final_loss, new_weight_list = forward_search(model, dataloader, criterion,
-                                                                                      change_weight_list, temp_loss,
-                                                                                      search_direction_vector,
-                                                                                      delta_direction_vector)
-        new_losses.ravel()[ind] = final_loss
-        origin_losses.ravel()[ind] = temp_loss
-        search_count_sum.append(search_count)
-    return origin_losses , new_losses, accuracies, xcoord_mesh, ycoord_mesh, search_count_sum
+        # test origin weight at certain point
+        set_weigth(model, temp_weight_list)
+        origin_acc, origin_loss = test(model, dataloader, criterion)
+        origin_accuracies.ravel()[ind] = origin_acc
+        origin_losses.ravel()[ind] = origin_loss
+
+        print('index{}    origin: acc:{}, loss:{}'.format(count,origin_acc, origin_loss))
+
+        # use back track search to find certain weight
+        if args.back_track_loss or args.forward_search_loss:
+            delta_direction, temp_loss = get_delta(model, dataloader, criterion)  # [batch_num, param_num]
+            delta_direction_vector = delta_direction[:3, :].mean(0)
+            search_direction_vector = decomposition_delta(delta_direction_vector, temp_weight_list, origin_weight_list)
+
+        if args.back_track_loss:
+            step_t, back_track_loss, back_track_acc, back_track_weight_list, back_track_search_count = back_tracking_line_search(
+                model, dataloader, criterion,
+                temp_weight_list, origin_loss,
+                search_direction_vector,
+                delta_direction_vector)
+
+            back_track_losses.ravel()[ind] = back_track_loss
+            back_track_accuracies.ravel()[ind] = back_track_acc
+            back_track_search_count_sum.ravel()[ind] = back_track_search_count
+            print('index{}    back: acc:{}, loss:{}, num:{}'.format(count,back_track_acc, back_track_loss, back_track_search_count))
+
+        # use forward search
+        if args.forward_search_loss:
+            step_t, forward_search_acc, forward_search_loss, forward_search_count = forward_search(model, dataloader,
+                                                                                                   criterion,
+                                                                                                   temp_weight_list,
+                                                                                                   origin_loss,
+                                                                                                   search_direction_vector,
+                                                                                                   delta_direction_vector)
+            forward_search_losses.ravel()[ind] = forward_search_loss
+            forward_search_accuracies.ravel()[ind] = forward_search_acc
+            forward_search_count_sum.ravel()[ind] = forward_search_count
+            print('index{}    forward: acc:{}, loss:{}, num:{}'.format(count, forward_search_acc, forward_search_loss, forward_search_count))
+    origin_result = [origin_accuracies, origin_losses]
+    back_result = [back_track_accuracies, back_track_losses, back_track_search_count_sum]
+    forward_result = [forward_search_accuracies, forward_search_losses, forward_search_count_sum]
+
+    return origin_result, back_result, forward_result, [x_coord_grid, y_coord_grid]
 
 
 '''
