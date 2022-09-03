@@ -15,7 +15,7 @@ def main():
     parser.add_argument('--arch', default='resnet20')
     parser.add_argument('--datasets', default='CIFAR10')
     # parser.add_argument('--weight_type', default='weight')
-    parser.add_argument('--workers', default=4, type=int)
+    parser.add_argument('--workers', default=8, type=int)
     parser.add_argument('--randomseed', default=1, type=int)
     parser.add_argument('--batch_size', default=1024, type=int)
     parser.add_argument('--epoch', default=100, type=int)

@@ -8,7 +8,7 @@ import os
 import resnet
 from torch.autograd.variable import Variable
 from scipy import interpolate
-import h5py
+# import h5py
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 
@@ -376,6 +376,10 @@ def normalize_direction(direction, weights, norm='filter'):
         # the unit norm.
         direction.div_(direction.norm())
 
+
+def update_grad(model, grad_list):
+    for ind, (name, param) in enumerate(model.named_parameters()):
+        param.grad.data = grad_list[ind]
 
 def normalize_directions_for_weights(direction, weights, norm='filter', ignore='biasbn'):
     assert (len(direction) == len(weights))
@@ -882,6 +886,14 @@ def cal_path(model, weight_list, filenames, direction, dataloader, criterion):
 #
 #     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
+def get_model_grad_list(model):
+    grad_list = []
+    for name, param in model.named_parameters():
+        grad_list.append(param.grad.detach())
+
+    return grad_list
+
+
 
 def get_model_grad_vec(model):
     # Return the model grad as a vector
@@ -916,8 +928,15 @@ def get_delta(model, dataloader, criterion):
 
 
 def decomposition_delta(delta_direction_vector, temp_weight_list, origin_weight):
-    origin_bias = flat_param(temp_weight_list) - flat_param(origin_weight)
+    delta_direction_list = divide_param(delta_direction_vector, temp_weight_list)
+    normalize_directions_for_weights(delta_direction_list, temp_weight_list)
+    delta_direction_vector = flat_param(delta_direction_list)
+    temp_weight_vector = flat_param(temp_weight_list)
+    origin_weight_vector = flat_param(origin_weight)
+    origin_bias = temp_weight_vector - origin_weight_vector
     origin_bias = torch.tensor(origin_bias).cuda()
+
+    # delta_direction_vector.mul_(temp_weight_vector.norm() / (delta_direction_vector.norm() + 1e-10))
 
     project_delta = (torch.dot(delta_direction_vector, origin_bias)) / (
         torch.dot(origin_bias, origin_bias)) * origin_bias
@@ -930,7 +949,7 @@ def decomposition_delta(delta_direction_vector, temp_weight_list, origin_weight)
     pass
 
 
-def set_weigth(model, weight_list):
+def set_weight(model, weight_list):
     for (p, w) in zip(model.parameters(), weight_list):
         p.data = w
 
@@ -938,7 +957,7 @@ def set_weigth(model, weight_list):
 def cal_direction_weight(temp_weight_list, search_direction_vector, t):
     new_weight_list = []
     search_direction_list = divide_param(search_direction_vector, temp_weight_list)
-    normalize_directions_for_weights(search_direction_list, temp_weight_list)
+    # normalize_directions_for_weights(search_direction_list, temp_weight_list)
     for (w, s) in zip(temp_weight_list, search_direction_list):
         new_weight_list.append(w + t * s.type_as(w))
 
@@ -946,23 +965,24 @@ def cal_direction_weight(temp_weight_list, search_direction_vector, t):
 
 
 def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
-                              delta_direction_vector, alpha=0.5, beta=0.5):
-    # bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
+                              delta_direction_vector, alpha=0.5, beta=0.6):
+    bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
     last_t = 0.008
     best_loss = np.inf
     search_count = 0
     while True:
         new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t)
-        set_weigth(model, new_weight_list)
+        set_weight(model, new_weight_list)
         new_acc, new_loss = test(model, dataloader, criterion)
         search_count += 1
-        if (new_loss > best_loss) or (search_count > 10):
-            break
-        # if (new_loss < temp_loss + alpha * last_t * bias_dot) or (count > 10):
+        # if (new_loss > best_loss) or (search_count > 10):
         #     break
-        else:
+        if best_loss > new_loss:
             best_loss = new_loss
             best_acc = new_acc
+        if (new_loss < temp_loss + alpha * last_t * bias_dot) or (search_count > 15):
+            break
+        else:
             last_t = last_t * beta
 
     return last_t, best_loss, best_acc, new_weight_list, search_count
@@ -976,7 +996,7 @@ def forward_search(model, dataloader, criterion, temp_weight_list, temp_loss, se
     search_count = 0
     while True:
         new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t + lr)
-        set_weigth(model, new_weight_list)
+        set_weight(model, new_weight_list)
         new_acc, new_loss = test(model, dataloader, criterion)
         search_count += 1
         if (new_loss > best_loss) or (search_count > 10):

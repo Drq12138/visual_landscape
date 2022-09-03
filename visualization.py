@@ -1,6 +1,6 @@
 from mpl_toolkits.mplot3d import Axes3D
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weigth, back_tracking_line_search, forward_search, test
+    decomposition_delta, set_weight, back_tracking_line_search, forward_search, test
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -97,12 +97,12 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinat
         # temp_weight_list = origin_weight_list
 
         # test origin weight at certain point
-        set_weigth(model, temp_weight_list)
+        set_weight(model, temp_weight_list)
         origin_acc, origin_loss = test(model, dataloader, criterion)
         origin_accuracies.ravel()[ind] = origin_acc
         origin_losses.ravel()[ind] = origin_loss
 
-        print('index{}    origin: acc:{}, loss:{}'.format(count,origin_acc, origin_loss))
+        print('index{}    origin: acc:{}, loss:{}'.format(count, origin_acc, origin_loss))
 
         # use back track search to find certain weight
         if args.back_track_loss or args.forward_search_loss:
@@ -120,7 +120,8 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinat
             back_track_losses.ravel()[ind] = back_track_loss
             back_track_accuracies.ravel()[ind] = back_track_acc
             back_track_search_count_sum.ravel()[ind] = back_track_search_count
-            print('index{}    back: acc:{}, loss:{}, num:{}'.format(count,back_track_acc, back_track_loss, back_track_search_count))
+            print('index{}    back: acc:{}, loss:{}, num:{}'.format(count, back_track_acc, back_track_loss,
+                                                                    back_track_search_count))
 
         # use forward search
         if args.forward_search_loss:
@@ -133,7 +134,8 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinat
             forward_search_losses.ravel()[ind] = forward_search_loss
             forward_search_accuracies.ravel()[ind] = forward_search_acc
             forward_search_count_sum.ravel()[ind] = forward_search_count
-            print('index{}    forward: acc:{}, loss:{}, num:{}'.format(count, forward_search_acc, forward_search_loss, forward_search_count))
+            print('index{}    forward: acc:{}, loss:{}, num:{}'.format(count, forward_search_acc, forward_search_loss,
+                                                                       forward_search_count))
     origin_result = [origin_accuracies, origin_losses]
     back_result = [back_track_accuracies, back_track_losses, back_track_search_count_sum]
     forward_result = [forward_search_accuracies, forward_search_losses, forward_search_count_sum]
