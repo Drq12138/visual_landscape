@@ -1,6 +1,6 @@
 from mpl_toolkits.mplot3d import Axes3D
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weight, back_tracking_line_search, forward_search, test
+    decomposition_delta, set_weight, back_tracking_line_search, forward_search, test, plot_both_path
 import numpy as np
 import torch
 from matplotlib import pyplot as plt

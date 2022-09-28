@@ -1,7 +1,8 @@
 import argparse
 import os
 
-from utils import get_model, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
+from utils import get_model, set_seed, get_datasets, AverageMeter, accuracy, test, train_net, get_weight_list, \
+    flat_param
 import torch
 import torch.nn as nn
 import numpy as np
@@ -26,7 +27,7 @@ def main():
     parser.add_argument('--optimizer', default='sgd')
     # parser.add_argument('--weight_type', default='weight')
     parser.add_argument('--direction_type', default='pca')
-    parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
+    parser.add_argument('--save_dir', default='./../checkpoints_0919/visualization')
     parser.add_argument('--name', default='test_visualization')
     parser.add_argument('--save_direction_type', default='')
     parser.add_argument('--load_path', default='')
@@ -90,9 +91,14 @@ def main():
         origin_train_loss = []
         origin_test_acc = []
         origin_test_loss = []
+        weight_matrix = []
         for epoch in range(args.epoch):
             tloss = train_net(model, train_loader, optimizer, criterion, epoch)
             lr_scheduler.step()
+            param_list = get_weight_list(model)
+            param_vector = flat_param(param_list).cpu()
+            weight_matrix.append(param_vector)
+
             origin_train_loss.append(tloss)
             accu, loss = test(model, val_loader, criterion)
             origin_test_acc.append(accu)
@@ -102,9 +108,9 @@ def main():
             torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
                        os.path.join(save_path, 'save_net_' + args.arch + '_' +
                                     str(epoch + 1).zfill(len(str(args.epoch))) + '.pt'))
-
+        weight_matrix = np.stack(weight_matrix)
         np.savez(os.path.join(save_path, 'save_net_' + args.arch + '_orig.npz'), origin_train_loss=origin_train_loss,
-                 origin_test_loss=origin_test_loss, origin_test_acc=origin_test_acc)
+                 origin_test_loss=origin_test_loss, origin_test_acc=origin_test_acc, origin_weight=weight_matrix)
 
     # ----------------- save direction -------------------------
     if args.save_direction_type:
@@ -114,7 +120,7 @@ def main():
         print('save direction type: ', args.save_direction_type)
         direction = get_direction_list(model, args.direction_type, filesnames, args.save_direction_type)
         torch.save({"direction": direction, "weight_type": args.save_direction_type},
-                   os.path.join(save_path, args.direction_type+'_direction_revised.pt'))
+                   os.path.join(save_path, args.direction_type + '_direction.pt'))
 
     print('-----------finish----------------')
 

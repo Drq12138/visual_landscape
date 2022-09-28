@@ -381,6 +381,7 @@ def update_grad(model, grad_list):
     for ind, (name, param) in enumerate(model.named_parameters()):
         param.grad.data = grad_list[ind]
 
+
 def normalize_directions_for_weights(direction, weights, norm='filter', ignore='biasbn'):
     assert (len(direction) == len(weights))
     for d, w in zip(direction, weights):
@@ -461,11 +462,11 @@ def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='bi
 
         pca = PCA(n_components=2)
         pca.fit_transform(mats_new)
-        principalComponents = np.array(pca.components_)
-        # principalComponents = pca.fit_transform(mats_new.T)
-        x_direction_flat = torch.tensor(principalComponents[0, :]).cuda()
+        # principalComponents = np.array(pca.components_)
+        principalComponents = pca.fit_transform(mats_new.T)
+        x_direction_flat = torch.tensor(principalComponents[:, 0]).cuda()
         x_direction_list = divide_param(x_direction_flat, weight_list)
-        y_direction_flat = torch.tensor(principalComponents[1, :]).cuda()
+        y_direction_flat = torch.tensor(principalComponents[:, 1]).cuda()
         y_direction_list = divide_param(y_direction_flat, weight_list)
         normalize_directions_for_weights(x_direction_list, weight_list, norm, ignore)
         normalize_directions_for_weights(y_direction_list, weight_list, norm, ignore)
@@ -639,14 +640,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
         '        <DataArray type="Float32" Name="zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
             min_value_array[2], max_value_array[2]))
     for vertexcount in range(number_points):
-        if (vertexcount % 6) is 0:
+        if (vertexcount % 6) == 0:
             output_file.write('          ')
         output_file.write('{}'.format(z_array[vertexcount]))
-        if (vertexcount % 6) is 5:
+        if (vertexcount % 6) == 5:
             output_file.write('\n')
         else:
             output_file.write(' ')
-    if (vertexcount % 6) is not 5:
+    if (vertexcount % 6) != 5:
         output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write('      </PointData>\n')
@@ -658,14 +659,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
             '        <DataArray type="Float32" Name="averaged zvalue" NumberOfComponents="1" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
                 avg_min_value, avg_max_value))
         for vertexcount in range(number_polys):
-            if (vertexcount % 6) is 0:
+            if (vertexcount % 6) == 0:
                 output_file.write('          ')
             output_file.write('{}'.format(averaged_z_value_array[vertexcount]))
-            if (vertexcount % 6) is 5:
+            if (vertexcount % 6) == 5:
                 output_file.write('\n')
             else:
                 output_file.write(' ')
-        if (vertexcount % 6) is not 5:
+        if (vertexcount % 6) != 5:
             output_file.write('\n')
         output_file.write('        </DataArray>\n')
     output_file.write('      </CellData>\n')
@@ -676,14 +677,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
         '        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii" RangeMin="{}" RangeMax="{}">\n'.format(
             min_value, max_value))
     for vertexcount in range(number_points):
-        if (vertexcount % 2) is 0:
+        if (vertexcount % 2) == 0:
             output_file.write('          ')
         output_file.write('{} {} {}'.format(x_array[vertexcount], y_array[vertexcount], z_array[vertexcount]))
-        if (vertexcount % 2) is 1:
+        if (vertexcount % 2) == 1:
             output_file.write('\n')
         else:
             output_file.write(' ')
-    if (vertexcount % 2) is not 1:
+    if (vertexcount % 2) != 1:
         output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write('      </Points>\n')
@@ -695,14 +696,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
             number_points - 1))
     if (show_points):
         for vertexcount in range(number_points):
-            if (vertexcount % 6) is 0:
+            if (vertexcount % 6) == 0:
                 output_file.write('          ')
             output_file.write('{}'.format(vertexcount))
-            if (vertexcount % 6) is 5:
+            if (vertexcount % 6) == 5:
                 output_file.write('\n')
             else:
                 output_file.write(' ')
-        if (vertexcount % 6) is not 5:
+        if (vertexcount % 6) != 5:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write(
@@ -710,14 +711,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
             number_points))
     if (show_points):
         for vertexcount in range(number_points):
-            if (vertexcount % 6) is 0:
+            if (vertexcount % 6) == 0:
                 output_file.write('          ')
             output_file.write('{}'.format(vertexcount + 1))
-            if (vertexcount % 6) is 5:
+            if (vertexcount % 6) == 5:
                 output_file.write('\n')
             else:
                 output_file.write(' ')
-        if (vertexcount % 6) is not 5:
+        if (vertexcount % 6) != 5:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write('      </Verts>\n')
@@ -757,16 +758,16 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
             stride_value = column_count * matrix_size
             for row_count in range(poly_size):
                 temp_index = stride_value + row_count
-                if (polycount % 2) is 0:
+                if (polycount % 2) == 0:
                     output_file.write('          ')
                 output_file.write('{} {} {} {}'.format(temp_index, (temp_index + 1), (temp_index + matrix_size + 1),
                                                        (temp_index + matrix_size)))
-                if (polycount % 2) is 1:
+                if (polycount % 2) == 1:
                     output_file.write('\n')
                 else:
                     output_file.write(' ')
                 polycount += 1
-        if (polycount % 2) is 1:
+        if (polycount % 2) == 1:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write(
@@ -774,14 +775,14 @@ def h5_to_vtp(vals, xcoordinates, ycoordinates, name, base_dir, log=False, zmax=
             number_polys))
     if (show_polys):
         for polycount in range(number_polys):
-            if (polycount % 6) is 0:
+            if (polycount % 6) == 0:
                 output_file.write('          ')
             output_file.write('{}'.format((polycount + 1) * 4))
-            if (polycount % 6) is 5:
+            if (polycount % 6) == 5:
                 output_file.write('\n')
             else:
                 output_file.write(' ')
-        if (polycount % 6) is not 5:
+        if (polycount % 6) != 5:
             output_file.write('\n')
     output_file.write('        </DataArray>\n')
     output_file.write('      </Polys>\n')
@@ -841,30 +842,73 @@ def cal_path(model, weight_list, filenames, direction, dataloader, criterion):
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
 
-#
-# def get_coefs(model, weight, state, filesnames, direction, dataloader, criterion, weight_type='weight'):
-#     dx, dy = direction[0], direction[1]
-#     matrix = [flat_param(dx), flat_param(dy)]
-#     matrix = np.vstack(matrix)
-#     matrix = matrix.T
-#
-#     if weight_type == 'weight':
-#         origin_weight = flat_param(weight, weight_type)
-#         coefs = []
-#         path_loss = []
-#         path_acc = []
-#         for file in tqdm(filesnames):
-#             checkpoint = torch.load(file)
-#             model.load_state_dict(checkpoint['state_dict'])
-#
-#             temp_weight = get_weight_list(model)
-#
-#             temp_flat = flat_param(temp_weight)
-#             b = temp_flat - origin_weight
-#             coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
-#             acc, loss = test(model, dataloader, criterion)
-#             path_loss.append(loss)
-#             path_acc.append(acc)
+def plot_both_path(model, weight_matrix, final_weight_list, direction, dataloader, criterion):
+    relative_weight_matrix = weight_matrix - weight_matrix[-1, :]
+
+    origin_dx = flat_param(direction[0])
+    origin_dy = flat_param(direction[1])
+    matrix = [origin_dx.cpu(), origin_dy.cpu()]
+    matrix = np.vstack(matrix)
+    matrix = matrix.T
+
+    coefs = []
+    project_losses = []
+    project_acces = []
+    temp_losses = []
+    temp_acces = []
+
+    for weight_idx in range(len(relative_weight_matrix)):
+        temp_weight = relative_weight_matrix[weight_idx, :]
+        temp_weight_tensor = torch.tensor(temp_weight + weight_matrix[-1, :]).cuda()
+        temp_weight_list = divide_param(temp_weight_tensor, final_weight_list)
+
+        coef = np.linalg.lstsq(matrix, temp_weight, rcond=None)[0]
+        coefs.append(np.hstack(coef))
+        project_weight = matrix @ coef.T + weight_matrix[-1, :]
+        project_weight_tensor = torch.tensor(project_weight).cuda()
+        project_weight_list = divide_param(project_weight_tensor, final_weight_list)
+
+        set_weight(model, project_weight_list)
+        project_acc, project_loss = test(model, dataloader, criterion)
+        project_losses.append(project_loss)
+        project_acces.append(project_acc)
+
+        set_weight(model, temp_weight_list)
+        temp_acc, temp_loss = test(model, dataloader, criterion)
+        temp_acces.append(temp_acc)
+        temp_losses.append(temp_loss)
+
+    return np.array(coefs), np.array(temp_losses), np.array(temp_acces), np.array(project_losses), np.array(
+        project_acces)
+
+
+
+
+    # dx, dy = direction[0], direction[1]
+    # matrix = [flat_param(dx), flat_param(dy)]
+    # matrix = np.vstack(matrix)
+    # matrix = matrix.T
+    # grad_matrix = []
+    #
+    #
+    # # origin_weight = flat_param(weight)
+    # coefs = []
+    # path_loss = []
+    # path_acc = []
+    # for file in tqdm(filesnames):
+    #     checkpoint = torch.load(file)
+    #     model.load_state_dict(checkpoint['state_dict'])
+    #
+    #     temp_weight = get_weight_list(model)
+    #
+    #     temp_flat = flat_param(temp_weight)
+    #     b = temp_flat - origin_weight
+    #     coefs.append(np.hstack(np.linalg.lstsq(matrix, b, rcond=None)[0]))
+    #     acc, loss = test(model, dataloader, criterion)
+    #     path_loss.append(loss)
+    #     path_acc.append(acc)
+
+
 #
 #     elif weight_type == 'state':
 #         origin_state = flat_param(state, weight_type)
@@ -892,7 +936,6 @@ def get_model_grad_list(model):
         grad_list.append(param.grad.detach())
 
     return grad_list
-
 
 
 def get_model_grad_vec(model):
@@ -964,46 +1007,46 @@ def cal_direction_weight(temp_weight_list, search_direction_vector, t):
     return new_weight_list
 
 
-def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
-                              delta_direction_vector, alpha=0.5, beta=0.6):
-    bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
-    last_t = 0.008
-    best_loss = np.inf
-    search_count = 0
-    while True:
-        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t)
-        set_weight(model, new_weight_list)
-        new_acc, new_loss = test(model, dataloader, criterion)
-        search_count += 1
-        # if (new_loss > best_loss) or (search_count > 10):
-        #     break
-        if best_loss > new_loss:
-            best_loss = new_loss
-            best_acc = new_acc
-        if (new_loss < temp_loss + alpha * last_t * bias_dot) or (search_count > 15):
-            break
-        else:
-            last_t = last_t * beta
-
-    return last_t, best_loss, best_acc, new_weight_list, search_count
-
-
-def forward_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
-                   delta_direction_vector, lr=1e-4):
-    last_t = 0
-    best_loss = np.inf
-
-    search_count = 0
-    while True:
-        new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t + lr)
-        set_weight(model, new_weight_list)
-        new_acc, new_loss = test(model, dataloader, criterion)
-        search_count += 1
-        if (new_loss > best_loss) or (search_count > 10):
-            break
-        else:
-            best_loss = new_loss
-            best_acc = new_acc
-            last_t += lr
-
-    return last_t, best_acc, best_loss, search_count
+# def back_tracking_line_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
+#                               delta_direction_vector, alpha=0.5, beta=0.6):
+#     bias_dot = torch.dot(search_direction_vector, delta_direction_vector)
+#     last_t = 0.008
+#     best_loss = np.inf
+#     search_count = 0
+#     while True:
+#         new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t)
+#         set_weight(model, new_weight_list)
+#         new_acc, new_loss = test(model, dataloader, criterion)
+#         search_count += 1
+#         # if (new_loss > best_loss) or (search_count > 10):
+#         #     break
+#         if best_loss > new_loss:
+#             best_loss = new_loss
+#             best_acc = new_acc
+#         if (new_loss < temp_loss + alpha * last_t * bias_dot) or (search_count > 15):
+#             break
+#         else:
+#             last_t = last_t * beta
+#
+#     return last_t, best_loss, best_acc, new_weight_list, search_count
+#
+#
+# def forward_search(model, dataloader, criterion, temp_weight_list, temp_loss, search_direction_vector,
+#                    delta_direction_vector, lr=1e-4):
+#     last_t = 0
+#     best_loss = np.inf
+#
+#     search_count = 0
+#     while True:
+#         new_weight_list = cal_direction_weight(temp_weight_list, search_direction_vector, last_t + lr)
+#         set_weight(model, new_weight_list)
+#         new_acc, new_loss = test(model, dataloader, criterion)
+#         search_count += 1
+#         if (new_loss > best_loss) or (search_count > 10):
+#             break
+#         else:
+#             best_loss = new_loss
+#             best_acc = new_acc
+#             last_t += lr
+#
+#     return last_t, best_acc, best_loss, search_count

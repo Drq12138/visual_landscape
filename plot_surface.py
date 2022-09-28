@@ -1,7 +1,8 @@
 import argparse
 import os
 import copy
-from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMeter, accuracy, test, train_net
+from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMeter, accuracy, test, train_net, \
+    plot_both_path
 import torch
 import torch.nn as nn
 import numpy as np
@@ -55,9 +56,13 @@ def main():
 
     # -------------resume------------------------
     if args.load_path:
+        origin_data_load = np.load(os.path.join(args.load_path, 'save_net_resnet20_orig.npz'))
         print("=> loading checkpoint '{}'".format(args.load_path))
-        checkpoint = torch.load(args.load_path)
+        checkpoint = torch.load(os.path.join(args.load_path, 'save_net_resnet20_100.pt'))
         model.load_state_dict(checkpoint['state_dict'])
+        final_weight_list = get_weight_list(model)
+
+        weight_matrix = origin_data_load['origin_weight']
     origin_weight_list = get_weight_list(model)
     torch.backends.cudnn.benchmark = True
 
@@ -79,16 +84,24 @@ def main():
             file_index]
 
     print('begin plot')
+    direction_load = torch.load(args.direction_path)
+    direction = direction_load["direction"]
     if args.fix_coor:
-        direction_load = torch.load(args.direction_path)
-        direction = direction_load["direction"]
+
         x_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
         y_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
     else:
-        path_x, path_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filenames_1, train_loader,
-                                                                   criterion, args)
-        np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=path_loss, accuracies=path_acc,
-                 xcoord_mesh=path_x, ycoord_mesh=path_y)
+        path_coordinate, temp_loss, temp_acc, pro_loss, pro_acc = plot_both_path(model, weight_matrix,
+                                                                                 final_weight_list,
+                                                                                 direction, train_loader, criterion)
+        # path_x, path_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filenames_1, train_loader,
+        #                                                            criterion, args)
+        path_x = path_coordinate[:, 0][np.newaxis]
+        path_y = path_coordinate[:, 1][np.newaxis]
+        np.savez(os.path.join(save_path, 'save_path_val.npz'), temp_losses=temp_loss, temp_accuracies=temp_acc,
+                 xcoord_mesh=path_x, ycoord_mesh=path_y, pro_loss=pro_loss, pro_acc=pro_acc)
+        # np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=temp_loss, accuracies=temp_acc,
+        #          xcoord_mesh=path_x, ycoord_mesh=path_y)
         boundaries_x = max(path_x[0]) - min(path_x[0])
         boundaries_y = max(path_y[0]) - min(path_y[0])
 

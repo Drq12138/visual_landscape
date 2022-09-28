@@ -65,7 +65,7 @@ def plot_result(result, x_coord,y_coord,args, datatype = 'origin'):
 
 def main():
     parser = argparse.ArgumentParser(description='can plot based on saved data')
-    parser.add_argument('--name', default='test_30_num_half_data')
+    parser.add_argument('--name', default='test_both_path')
     parser.add_argument('--base_dir', default='/home/DiskB/rqding/checkpoints_0820/visualization/')
     args = parser.parse_args()
     print(args)
@@ -83,12 +83,17 @@ def main():
     plot_result(back_result, x_coord_grid, y_coord_grid, args, 'back_result')
     plot_result(forward_result, x_coord_grid, y_coord_grid, args, 'forward_result')
 
-    losses = path_data["losses"]
-    accuracies = path_data["accuracies"]
+    losses = path_data["temp_losses"]
+    accuracies = path_data["temp_accuracies"]
     xcoord_mesh = path_data["xcoord_mesh"]
     ycoord_mesh = path_data["ycoord_mesh"]
+    pro_loss = path_data["pro_loss"]
+    pro_acc = path_data["pro_acc"]
 
     h5_to_vtp(losses, xcoord_mesh, ycoord_mesh, args.name + '_path_ori',
+              os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1, interp=-1,
+              show_points=True, show_polys=False)
+    h5_to_vtp(pro_loss, xcoord_mesh, ycoord_mesh, args.name + '_path_pro',
               os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1, interp=-1,
               show_points=True, show_polys=False)
 
