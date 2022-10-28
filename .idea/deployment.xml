@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="pami@202.120.37.154:5120 password" deleteMissingItems="true" createEmptyFolders="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="amax@202.120.37.154:1000 password" deleteMissingItems="true" createEmptyFolders="true">
     <serverData>
-      <paths name="5120">
+      <paths name="amax@202.120.37.154:1000 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/DiskB/rqding/visual_landscape" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/data0/rqding/visual_landscape_1000" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

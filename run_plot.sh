@@ -1,11 +1,12 @@
 python plot_surface.py \
 --batch_size 8192 \
 --datasets CIFAR10 \
---name test_both_path \
+--name test_project_100 \
 --epoch 100 \
 --smalldatasets 0.5 \
 --mult_gpu \
---plt_path_one origin_path \
---back_track_loss \
---load_path /home/DiskB/rqding/checkpoints_0919/visualization/origin_path \
---direction_path /home/DiskB/rqding/checkpoints_0919/visualization/origin_path/pca_direction.pt
+--plt_path_one path_0 \
+--fix_coor \
+--plot_init save_net_resnet20_100.pt \
+--load_path ./../checkpoints_0919/visualization/path_0 \
+--direction_path ./../checkpoints_0919/visualization/path_0/pca_direction.pt

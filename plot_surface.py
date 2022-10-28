@@ -2,7 +2,7 @@ import argparse
 import os
 import copy
 from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMeter, accuracy, test, train_net, \
-    plot_both_path
+    plot_both_path,set_weight
 import torch
 import torch.nn as nn
 import numpy as np
@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description='can plot weight or state')
     parser.add_argument('--arch', default='resnet20')
     parser.add_argument('--datasets', default='CIFAR10')
+    parser.add_argument('--plot_init', default='save_net_resnet20_100.pt')
     # parser.add_argument('--weight_type', default='weight')
     parser.add_argument('--workers', default=8, type=int)
     parser.add_argument('--randomseed', default=1, type=int)
@@ -28,8 +29,9 @@ def main():
     parser.add_argument('--back_track_loss', action='store_true')
     parser.add_argument('--forward_search_loss', action='store_true')
     parser.add_argument('--lr', default=0.04, type=float)
+    parser.add_argument('--project_point', default='')
 
-    parser.add_argument('--save_dir', default='./../checkpoints_0820/visualization')
+    parser.add_argument('--save_dir', default='./../checkpoints_0919/visualization')
     parser.add_argument('--name', default='mul_test')
     parser.add_argument('--load_path', default='')
     parser.add_argument('--plt_path_one', default='')
@@ -58,9 +60,10 @@ def main():
     if args.load_path:
         origin_data_load = np.load(os.path.join(args.load_path, 'save_net_resnet20_orig.npz'))
         print("=> loading checkpoint '{}'".format(args.load_path))
-        checkpoint = torch.load(os.path.join(args.load_path, 'save_net_resnet20_100.pt'))
+        checkpoint = torch.load(os.path.join(args.load_path, args.plot_init))
         model.load_state_dict(checkpoint['state_dict'])
         final_weight_list = get_weight_list(model)
+
 
         weight_matrix = origin_data_load['origin_weight']
     origin_weight_list = get_weight_list(model)
@@ -88,8 +91,8 @@ def main():
     direction = direction_load["direction"]
     if args.fix_coor:
 
-        x_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
-        y_coordinate = np.linspace(-0.5, 0.5, args.plot_num)
+        x_coordinate = np.linspace(-1, 1, args.plot_num)
+        y_coordinate = np.linspace(-1, 1, args.plot_num)
     else:
         path_coordinate, temp_loss, temp_acc, pro_loss, pro_acc = plot_both_path(model, weight_matrix,
                                                                                  final_weight_list,

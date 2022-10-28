@@ -8,7 +8,7 @@ import torch.nn as nn
 import numpy as np
 from visualization import get_direction_list
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 
 def main():

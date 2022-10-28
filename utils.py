@@ -332,7 +332,7 @@ def get_weight_list(net):
     :param net:
     :return: list, element of tensor
     """
-    return [p.data for p in net.parameters()]
+    return [p.data.clone() for p in net.parameters()]
 
 
 def get_random_weights(weights):
@@ -858,7 +858,12 @@ def plot_both_path(model, weight_matrix, final_weight_list, direction, dataloade
     temp_acces = []
 
     for weight_idx in range(len(relative_weight_matrix)):
-        temp_weight = relative_weight_matrix[weight_idx, :]
+
+
+        position_weight = weight_matrix[weight_idx, :]
+        origin_weight = weight_matrix[-1,:]
+        temp_weight = position_weight - origin_weight
+
         temp_weight_tensor = torch.tensor(temp_weight + weight_matrix[-1, :]).cuda()
         temp_weight_list = divide_param(temp_weight_tensor, final_weight_list)
 
@@ -1050,3 +1055,23 @@ def cal_direction_weight(temp_weight_list, search_direction_vector, t):
 #             last_t += lr
 #
 #     return last_t, best_acc, best_loss, search_count
+
+
+def pro_weight(origin_weight_list, direction, project_weight_list):
+    dx_list = direction[0]
+    dy_list = direction[1]
+    matrix = [flat_param(dx_list).cpu(), flat_param(dy_list).cpu()]
+    matrix = np.vstack(matrix)
+    matrix = matrix.T
+    project_weight_vec = flat_param(project_weight_list)
+    origin_weight_vec = flat_param(origin_weight_list)
+    delta_weight_vec = origin_weight_vec - project_weight_vec
+
+    pro_coef = np.linalg.lstsq(matrix, delta_weight_vec.cpu(), rcond=None)[0]
+
+    new_weight_vec = matrix@pro_coef.T
+    new_weight_vec = torch.tensor(new_weight_vec).cuda()+ project_weight_vec
+    new_weight_list = divide_param(new_weight_vec,origin_weight_list)
+
+    return new_weight_list
+

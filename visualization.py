@@ -1,11 +1,12 @@
 from mpl_toolkits.mplot3d import Axes3D
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weight, back_tracking_line_search, forward_search, test, plot_both_path
+    decomposition_delta, set_weight, test, plot_both_path, pro_weight
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 import seaborn as sns
 from matplotlib import cm
+import os
 from tqdm import tqdm
 
 
@@ -68,6 +69,11 @@ def plot_path(model, origin_weight_list, filenames, dataloader, criterion, args)
 
 
 def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinate, y_coordinate, direction, args):
+    if args.project_point:
+        project_point_checkpoint = torch.load(os.path.join(args.load_path, args.project_point))
+        model.load_state_dict(project_point_checkpoint['state_dict'])
+        project_weight_list = get_weight_list(model)
+        origin_weight_list = pro_weight(origin_weight_list, direction, project_weight_list)
     shape = (len(x_coordinate), len(y_coordinate))
 
     origin_losses = -np.ones(shape=shape)

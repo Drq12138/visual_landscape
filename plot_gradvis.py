@@ -49,7 +49,7 @@ def plot_result(result, x_coord,y_coord,args, datatype = 'origin'):
     if datatype == 'origin':
         [origin_accuracies, origin_losses] = result
         h5_to_vtp(origin_losses, x_coord, y_coord, args.name + '_origin_losses',
-                  os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1,
+                  os.path.join('./../checkpoints_0919/visualization/', args.name), log=True, zmax=-1,
                   interp=-1)
     # elif datatype == 'back_result':
     #     [losses, accuracies, num] = result
@@ -59,43 +59,51 @@ def plot_result(result, x_coord,y_coord,args, datatype = 'origin'):
     else:
         [accuracies, losses, num] = result
         h5_to_vtp(losses, x_coord, y_coord, args.name + datatype+'_losses',
-                  os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1,
+                  os.path.join('./../checkpoints_0919/visualization/', args.name), log=True, zmax=-1,
                   interp=-1)
 
 
 def main():
     parser = argparse.ArgumentParser(description='can plot based on saved data')
     parser.add_argument('--name', default='test_both_path')
-    parser.add_argument('--base_dir', default='/home/DiskB/rqding/checkpoints_0820/visualization/')
+    parser.add_argument('--base_dir', default='./../checkpoints_0919/visualization/')
+    parser.add_argument('--path', action='store_true')
+    parser.add_argument('--surface', action='store_true')
     args = parser.parse_args()
+    # direction_load = torch.load('/home/DiskB/rqding/checkpoints_0919/visualization/origin_path/random_direction.pt')
+    # direction = direction_load["direction"]
     print(args)
+    if args.path:
+        path_data = np.load(os.path.join(args.base_dir, args.name, 'save_path_val.npz'))
+        losses = path_data["temp_losses"]
+        accuracies = path_data["temp_accuracies"]
+        xcoord_mesh = path_data["xcoord_mesh"]
+        ycoord_mesh = path_data["ycoord_mesh"]
+        pro_loss = path_data["pro_loss"]
+        pro_acc = path_data["pro_acc"]
+        h5_to_vtp(losses, xcoord_mesh, ycoord_mesh, args.name + '_path_ori',
+                  os.path.join('./../checkpoints_0919/visualization/', args.name), log=True, zmax=-1,
+                  interp=-1,
+                  show_points=True, show_polys=False)
+        h5_to_vtp(pro_loss, xcoord_mesh, ycoord_mesh, args.name + '_path_pro',
+                  os.path.join('./../checkpoints_0919/visualization/', args.name), log=True, zmax=-1,
+                  interp=-1,
+                  show_points=True, show_polys=False)
 
-    data = torch.load(os.path.join(args.base_dir, args.name, 'save_landscape_val.pt'))
-    path_data = np.load(os.path.join(args.base_dir, args.name, 'save_path_val.npz'))
+    if args.surface:
+        data = torch.load(os.path.join(args.base_dir, args.name, 'save_landscape_val.pt'))
+        origin_result = data['origin_result']
+        back_result = data['back_result']
+        forward_result = data['forward_result']
+        x_coord_grid = data['x_coord_grid']
+        y_coord_grid = data['y_coord_grid']
+        plot_result(origin_result, x_coord_grid, y_coord_grid,args, 'origin')
+        plot_result(back_result, x_coord_grid, y_coord_grid, args, 'back_result')
+        plot_result(forward_result, x_coord_grid, y_coord_grid, args, 'forward_result')
 
-    origin_result = data['origin_result']
-    back_result = data['back_result']
-    forward_result = data['forward_result']
-    x_coord_grid = data['x_coord_grid']
-    y_coord_grid = data['y_coord_grid']
 
-    plot_result(origin_result, x_coord_grid, y_coord_grid,args, 'origin')
-    plot_result(back_result, x_coord_grid, y_coord_grid, args, 'back_result')
-    plot_result(forward_result, x_coord_grid, y_coord_grid, args, 'forward_result')
 
-    losses = path_data["temp_losses"]
-    accuracies = path_data["temp_accuracies"]
-    xcoord_mesh = path_data["xcoord_mesh"]
-    ycoord_mesh = path_data["ycoord_mesh"]
-    pro_loss = path_data["pro_loss"]
-    pro_acc = path_data["pro_acc"]
 
-    h5_to_vtp(losses, xcoord_mesh, ycoord_mesh, args.name + '_path_ori',
-              os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1, interp=-1,
-              show_points=True, show_polys=False)
-    h5_to_vtp(pro_loss, xcoord_mesh, ycoord_mesh, args.name + '_path_pro',
-              os.path.join('/home/DiskB/rqding/checkpoints_0820/visualization/', args.name), log=True, zmax=-1, interp=-1,
-              show_points=True, show_polys=False)
 
 
     #
