@@ -458,7 +458,8 @@ def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='bi
             temp_weight_flat = flat_param(temp_weight_list, weight_type)
             mats.append(temp_weight_flat.cpu())
         mats = np.vstack(mats)
-        mats_new = mats[:-1] - mats[-1]
+        # mats_new = mats[:-1] - mats[-1]
+        mats_new = mats
 
         pca = PCA(n_components=2)
         pca.fit_transform(mats_new)
@@ -842,14 +843,14 @@ def cal_path(model, weight_list, filenames, direction, dataloader, criterion):
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
 
-def plot_both_path(model, weight_matrix, final_weight_list, direction, dataloader, criterion):
-    relative_weight_matrix = weight_matrix - weight_matrix[-1, :]
+def plot_both_path(model, weight_matrix, final_weight_list, direction_tensors, dataloader, criterion):
+    relative_weight_matrix = weight_matrix - weight_matrix[-1, :]   # 1-100
 
-    origin_dx = flat_param(direction[0])
-    origin_dy = flat_param(direction[1])
-    matrix = [origin_dx.cpu(), origin_dy.cpu()]
-    matrix = np.vstack(matrix)
-    matrix = matrix.T
+    origin_dx = direction_tensors[0]
+    origin_dy = direction_tensors[1]
+    dirention_matrix = [origin_dx.cpu(), origin_dy.cpu()]
+    dirention_matrix = np.vstack(dirention_matrix)
+    dirention_matrix = dirention_matrix.T
 
     coefs = []
     project_losses = []
@@ -867,9 +868,9 @@ def plot_both_path(model, weight_matrix, final_weight_list, direction, dataloade
         temp_weight_tensor = torch.tensor(temp_weight + weight_matrix[-1, :]).cuda()
         temp_weight_list = divide_param(temp_weight_tensor, final_weight_list)
 
-        coef = np.linalg.lstsq(matrix, temp_weight, rcond=None)[0]
+        coef = np.linalg.lstsq(dirention_matrix, temp_weight, rcond=None)[0]
         coefs.append(np.hstack(coef))
-        project_weight = matrix @ coef.T + weight_matrix[-1, :]
+        project_weight = dirention_matrix @ coef.T + weight_matrix[-1, :]
         project_weight_tensor = torch.tensor(project_weight).cuda()
         project_weight_list = divide_param(project_weight_tensor, final_weight_list)
 
@@ -912,8 +913,6 @@ def plot_both_path(model, weight_matrix, final_weight_list, direction, dataloade
     #     acc, loss = test(model, dataloader, criterion)
     #     path_loss.append(loss)
     #     path_acc.append(acc)
-
-
 #
 #     elif weight_type == 'state':
 #         origin_state = flat_param(state, weight_type)
@@ -1073,5 +1072,5 @@ def pro_weight(origin_weight_list, direction, project_weight_list):
     new_weight_vec = torch.tensor(new_weight_vec).cuda()+ project_weight_vec
     new_weight_list = divide_param(new_weight_vec,origin_weight_list)
 
-    return new_weight_list
+    return new_weight_list, pro_coef
 

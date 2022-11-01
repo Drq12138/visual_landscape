@@ -49,7 +49,7 @@ def plot_result(result, x_coord,y_coord,args, datatype = 'origin'):
     if datatype == 'origin':
         [origin_accuracies, origin_losses] = result
         h5_to_vtp(origin_losses, x_coord, y_coord, args.name + '_origin_losses',
-                  os.path.join('./../checkpoints_0919/visualization/', args.name), log=True, zmax=-1,
+                  os.path.join('./../checkpoints_0919/visualization/', 'save_landscape'), log=True, zmax=-1,
                   interp=-1)
     # elif datatype == 'back_result':
     #     [losses, accuracies, num] = result
@@ -98,8 +98,8 @@ def main():
         x_coord_grid = data['x_coord_grid']
         y_coord_grid = data['y_coord_grid']
         plot_result(origin_result, x_coord_grid, y_coord_grid,args, 'origin')
-        plot_result(back_result, x_coord_grid, y_coord_grid, args, 'back_result')
-        plot_result(forward_result, x_coord_grid, y_coord_grid, args, 'forward_result')
+        # plot_result(back_result, x_coord_grid, y_coord_grid, args, 'back_result')
+        # plot_result(forward_result, x_coord_grid, y_coord_grid, args, 'forward_result')
 
 
 

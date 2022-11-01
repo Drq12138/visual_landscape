@@ -2,13 +2,13 @@ import argparse
 import os
 import copy
 from utils import get_model, get_weight_list, set_seed, get_datasets, AverageMeter, accuracy, test, train_net, \
-    plot_both_path,set_weight
+    plot_both_path, set_weight, flat_param
 import torch
 import torch.nn as nn
 import numpy as np
 from visualization import plot_path, plot_landscape
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 
 def main():
@@ -46,14 +46,15 @@ def main():
     set_seed(args.randomseed)
     # --------- dataset---------------------
     train_loader, val_loader = get_datasets(args)
-    print(len(train_loader.dataset))
-    print(len(val_loader.dataset))
+    print('train loader length: {}'.format(len(train_loader.dataset)))
+    print('test loader length: {}'.format(len(val_loader.dataset)))
 
     # -----------model--------------------------
     model = get_model(args)
     # weight = get_weights(model)
     if args.mult_gpu:
         model = torch.nn.DataParallel(model)
+        print('use multi GPU')
     model.cuda()
 
     # -------------resume------------------------
@@ -62,18 +63,21 @@ def main():
         print("=> loading checkpoint '{}'".format(args.load_path))
         checkpoint = torch.load(os.path.join(args.load_path, args.plot_init))
         model.load_state_dict(checkpoint['state_dict'])
-        final_weight_list = get_weight_list(model)
-
+        init_point_weight_list = get_weight_list(model)
+        print("use checkpoint of '{}' as plot initial point".format(args.plot_init))
 
         weight_matrix = origin_data_load['origin_weight']
-    origin_weight_list = get_weight_list(model)
+    # origin_weight_list = get_weight_list(model)
     torch.backends.cudnn.benchmark = True
 
     criterion = nn.CrossEntropyLoss().cuda()
 
     save_path = os.path.join(args.save_dir, args.name)
+
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
+    print("save all the result in path '{}'".format(save_path))
+
     file_index = np.linspace(0, args.epoch, args.epoch + 1)
 
     load_plt_path_1 = os.path.join(args.save_dir, args.plt_path_one)
@@ -86,23 +90,28 @@ def main():
             load_plt_path_2 + '/save_net_' + args.arch + '_' + str(int(i)).zfill(len(str(args.epoch))) + '.pt' for i in
             file_index]
 
-    print('begin plot')
     direction_load = torch.load(args.direction_path)
-    direction = direction_load["direction"]
-    if args.fix_coor:
+    direction_list = direction_load["direction"]
+    direction_tensors = [flat_param(direction_list[0]), flat_param(direction_list[0])]
+    print("use direction file '{}'".format(args.direction_path))
 
+    if args.fix_coor:
+        print("use fix coordinate without calculate path")
         x_coordinate = np.linspace(-1, 1, args.plot_num)
         y_coordinate = np.linspace(-1, 1, args.plot_num)
     else:
+        print("use coordinate based on calculated path, now begin calculate ...")
         path_coordinate, temp_loss, temp_acc, pro_loss, pro_acc = plot_both_path(model, weight_matrix,
-                                                                                 final_weight_list,
-                                                                                 direction, train_loader, criterion)
+                                                                                 init_point_weight_list,
+                                                                                 direction_tensors, train_loader,
+                                                                                 criterion)
         # path_x, path_y, path_loss, path_acc, direction = plot_path(model, origin_weight_list, filenames_1, train_loader,
         #                                                            criterion, args)
         path_x = path_coordinate[:, 0][np.newaxis]
         path_y = path_coordinate[:, 1][np.newaxis]
         np.savez(os.path.join(save_path, 'save_path_val.npz'), temp_losses=temp_loss, temp_accuracies=temp_acc,
                  xcoord_mesh=path_x, ycoord_mesh=path_y, pro_loss=pro_loss, pro_acc=pro_acc)
+        print("save path file in '{}'".format(os.path.join(save_path, 'save_path_val.npz')))
         # np.savez(os.path.join(save_path, 'save_path_val.npz'), losses=temp_loss, accuracies=temp_acc,
         #          xcoord_mesh=path_x, ycoord_mesh=path_y)
         boundaries_x = max(path_x[0]) - min(path_x[0])
@@ -112,18 +121,19 @@ def main():
                                    max(path_x[0]) + args.plot_ratio * boundaries_x, args.plot_num)
         y_coordinate = np.linspace(min(path_y[0]) - args.plot_ratio * boundaries_y,
                                    max(path_y[0]) + args.plot_ratio * boundaries_y, args.plot_num)
-
-    origin_result, back_result, forward_result, [x_coord_grid, y_coord_grid] = plot_landscape(model,
-                                                                                              origin_weight_list,
+    print("begin calculate loss landscape ...")
+    origin_result, back_result, forward_result, [x_coord_grid, y_coord_grid] = plot_landscape(model, weight_matrix,
+                                                                                              init_point_weight_list,
                                                                                               train_loader,
                                                                                               criterion,
                                                                                               x_coordinate,
                                                                                               y_coordinate,
-                                                                                              direction,
+                                                                                              direction_list,
                                                                                               args)
     torch.save({'origin_result': origin_result, 'back_result': back_result, 'forward_result': forward_result,
                 'x_coord_grid': x_coord_grid, 'y_coord_grid': y_coord_grid},
                os.path.join(save_path, 'save_landscape_val.pt'))
+    print("save landscape file in '{}'".format(os.path.join(save_path, 'save_landscape_val.pt')))
 
     # np.savez(os.path.join(save_path, 'save_landscape_val.npz'), origin_losses=origin_loss, new_loss=new_loss,
     #          accuracies=accuracies, xcoord_mesh=x_coord_grid, ycoord_mesh=y_coord_grid,

@@ -1,6 +1,6 @@
 from mpl_toolkits.mplot3d import Axes3D
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weight, test, plot_both_path, pro_weight
+    decomposition_delta, set_weight, test, plot_both_path, pro_weight, divide_param
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -68,12 +68,17 @@ def plot_path(model, origin_weight_list, filenames, dataloader, criterion, args)
     return path_x, path_y, path_loss, path_acc, direction
 
 
-def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinate, y_coordinate, direction, args):
+def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterion, x_coordinate, y_coordinate, direction, args):
+    pro_coef = np.zeros((2))
     if args.project_point:
         project_point_checkpoint = torch.load(os.path.join(args.load_path, args.project_point))
         model.load_state_dict(project_point_checkpoint['state_dict'])
         project_weight_list = get_weight_list(model)
-        origin_weight_list = pro_weight(origin_weight_list, direction, project_weight_list)
+        # project_weight_vec = weight_matrix.mean(0)
+        # # print(type(project_weight_vec))
+        # project_weight_tensor = torch.tensor(project_weight_vec ).cuda()
+        # project_weight_list = divide_param(project_weight_tensor,origin_weight_list)
+        origin_weight_list, pro_coef = pro_weight(origin_weight_list, direction, project_weight_list)
     shape = (len(x_coordinate), len(y_coordinate))
 
     origin_losses = -np.ones(shape=shape)
@@ -146,7 +151,7 @@ def plot_landscape(model, origin_weight_list, dataloader, criterion, x_coordinat
     back_result = [back_track_accuracies, back_track_losses, back_track_search_count_sum]
     forward_result = [forward_search_accuracies, forward_search_losses, forward_search_count_sum]
 
-    return origin_result, back_result, forward_result, [x_coord_grid, y_coord_grid]
+    return origin_result, back_result, forward_result, [x_coord_grid+pro_coef[0], y_coord_grid+pro_coef[0]]
 
 
 '''

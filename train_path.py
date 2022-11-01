@@ -120,7 +120,7 @@ def main():
         print('save direction type: ', args.save_direction_type)
         direction = get_direction_list(model, args.direction_type, filesnames, args.save_direction_type)
         torch.save({"direction": direction, "weight_type": args.save_direction_type},
-                   os.path.join(save_path, args.direction_type + '_direction.pt'))
+                   os.path.join(save_path, args.direction_type + '_all_direction.pt'))
 
     print('-----------finish----------------')
 

@@ -1,12 +1,12 @@
 python plot_surface.py \
 --batch_size 8192 \
 --datasets CIFAR10 \
---name test_project_100 \
+--name pro_100_pca2 \
 --epoch 100 \
 --smalldatasets 0.5 \
 --mult_gpu \
---plt_path_one path_0 \
+--plt_path_one origin_path \
 --fix_coor \
 --plot_init save_net_resnet20_100.pt \
---load_path ./../checkpoints_0919/visualization/path_0 \
---direction_path ./../checkpoints_0919/visualization/path_0/pca_direction.pt
+--load_path ./../checkpoints_0919/visualization/origin_path \
+--direction_path ./../checkpoints_0919/visualization/origin_path/pca_all_direction.pt
