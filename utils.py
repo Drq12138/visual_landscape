@@ -325,6 +325,8 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
+def full_fill_name(epoch, length, arch='resnet20'):
+    return 'save_net_' + arch + '_' + str(epoch).zfill(length) + '.pt'
 
 def get_weight_list(net):
     """
@@ -462,12 +464,12 @@ def create_pca_direction(model, weight_list, weight_type, filesnames, ignore='bi
         mats_new = mats
 
         pca = PCA(n_components=2)
-        pca.fit_transform(mats_new)
-        # principalComponents = np.array(pca.components_)
-        principalComponents = pca.fit_transform(mats_new.T)
-        x_direction_flat = torch.tensor(principalComponents[:, 0]).cuda()
+        pca.fit_transform(mats)
+        principalComponents = pca.components_
+        # principalComponents = pca.fit_transform(mats_new.T)
+        x_direction_flat = torch.tensor(principalComponents[0, :]).cuda()
         x_direction_list = divide_param(x_direction_flat, weight_list)
-        y_direction_flat = torch.tensor(principalComponents[:, 1]).cuda()
+        y_direction_flat = torch.tensor(principalComponents[1, :]).cuda()
         y_direction_list = divide_param(y_direction_flat, weight_list)
         normalize_directions_for_weights(x_direction_list, weight_list, norm, ignore)
         normalize_directions_for_weights(y_direction_list, weight_list, norm, ignore)
@@ -843,14 +845,17 @@ def cal_path(model, weight_list, filenames, direction, dataloader, criterion):
     return np.array(coefs), np.array(path_loss), np.array(path_acc)
 
 
-def plot_both_path(model, weight_matrix, final_weight_list, direction_tensors, dataloader, criterion):
+def plot_both_path(model, weight_matrix, final_weight_list, direction_list, dataloader, criterion):
     relative_weight_matrix = weight_matrix - weight_matrix[-1, :]   # 1-100
+    direction_tensors = [flat_param(direction_list[0]), flat_param(direction_list[1])]
+    matrix = torch.stack(direction_tensors, 1)                      # [D,2]
+    matrix_pinv = torch.linalg.pinv(matrix)
 
-    origin_dx = direction_tensors[0]
-    origin_dy = direction_tensors[1]
-    dirention_matrix = [origin_dx.cpu(), origin_dy.cpu()]
-    dirention_matrix = np.vstack(dirention_matrix)
-    dirention_matrix = dirention_matrix.T
+    # origin_dx = direction_tensors[0]
+    # origin_dy = direction_tensors[1]
+    # dirention_matrix = [origin_dx.cpu(), origin_dy.cpu()]
+    # dirention_matrix = np.vstack(dirention_matrix)
+    # dirention_matrix = dirention_matrix.T
 
     coefs = []
     project_losses = []
@@ -859,19 +864,24 @@ def plot_both_path(model, weight_matrix, final_weight_list, direction_tensors, d
     temp_acces = []
 
     for weight_idx in range(len(relative_weight_matrix)):
+        print("temp ind: {}".format(weight_idx))
+    # for weight_idx in range(3):
+        temp_weight_tensor = weight_matrix[weight_idx,:]
+        rela_weight_tensor = relative_weight_matrix[weight_idx,:]
+        # position_weight = weight_matrix[weight_idx, :]
+        # origin_weight = weight_matrix[-1,:]
+        # temp_weight = position_weight - origin_weight
 
-
-        position_weight = weight_matrix[weight_idx, :]
-        origin_weight = weight_matrix[-1,:]
-        temp_weight = position_weight - origin_weight
-
-        temp_weight_tensor = torch.tensor(temp_weight + weight_matrix[-1, :]).cuda()
+        # temp_weight_tensor = torch.tensor(temp_weight + weight_matrix[-1, :]).cuda()
         temp_weight_list = divide_param(temp_weight_tensor, final_weight_list)
+        pro_coef = torch.mm(matrix_pinv, rela_weight_tensor.unsqueeze(1))
 
-        coef = np.linalg.lstsq(dirention_matrix, temp_weight, rcond=None)[0]
-        coefs.append(np.hstack(coef))
-        project_weight = dirention_matrix @ coef.T + weight_matrix[-1, :]
-        project_weight_tensor = torch.tensor(project_weight).cuda()
+
+        # coef = np.linalg.lstsq(dirention_matrix, temp_weight, rcond=None)[0]
+        coefs.append(pro_coef.view(-1))
+        project_weight_tensor = torch.mm(matrix, pro_coef).view(-1) + weight_matrix[-1, :]
+        # project_weight = dirention_matrix @ coef.T + weight_matrix[-1, :]
+        # project_weight_tensor = torch.tensor(project_weight).cuda()
         project_weight_list = divide_param(project_weight_tensor, final_weight_list)
 
         set_weight(model, project_weight_list)
@@ -884,7 +894,7 @@ def plot_both_path(model, weight_matrix, final_weight_list, direction_tensors, d
         temp_acces.append(temp_acc)
         temp_losses.append(temp_loss)
 
-    return np.array(coefs), np.array(temp_losses), np.array(temp_acces), np.array(project_losses), np.array(
+    return  torch.stack(coefs).cpu().numpy(), np.array(temp_losses), np.array(temp_acces), np.array(project_losses), np.array(
         project_acces)
 
 
@@ -1056,21 +1066,33 @@ def cal_direction_weight(temp_weight_list, search_direction_vector, t):
 #     return last_t, best_acc, best_loss, search_count
 
 
-def pro_weight(origin_weight_list, direction, project_weight_list):
-    dx_list = direction[0]
-    dy_list = direction[1]
-    matrix = [flat_param(dx_list).cpu(), flat_param(dy_list).cpu()]
-    matrix = np.vstack(matrix)
-    matrix = matrix.T
+def pro_weight(origin_weight_list, direction_tensors, project_weight_list):
+    # dx_list = direction[0]
+    # dy_list = direction[1]
+    matrix = torch.stack(direction_tensors,1)               # [D, 2]
+
+    # matrix = [flat_param(dx_list).cpu(), flat_param(dy_list).cpu()]
+    # matrix = np.vstack(matrix)
+    # matrix = matrix.T
     project_weight_vec = flat_param(project_weight_list)
     origin_weight_vec = flat_param(origin_weight_list)
     delta_weight_vec = origin_weight_vec - project_weight_vec
 
-    pro_coef = np.linalg.lstsq(matrix, delta_weight_vec.cpu(), rcond=None)[0]
+    # pro_coef = torch.linalg.lstsq(matrix, delta_weight_vec).solution
+    # inv_1 = torch.linalg.pinv(matrix)
+    pro_coef = torch.mm(torch.linalg.pinv(matrix),delta_weight_vec.unsqueeze(1))               # [2,1]
 
-    new_weight_vec = matrix@pro_coef.T
-    new_weight_vec = torch.tensor(new_weight_vec).cuda()+ project_weight_vec
+    # pro_coef = np.linalg.lstsq(matrix, delta_weight_vec.cpu(), rcond=None)[0]
+
+    # new_weight_vec = matrix@pro_coef.T
+    # new_weight_vec = torch.tensor(new_weight_vec).cuda()+ project_weight_vec
+    new_weight_vec = torch.mm(matrix, pro_coef).view(-1) + project_weight_vec
+
     new_weight_list = divide_param(new_weight_vec,origin_weight_list)
 
     return new_weight_list, pro_coef
 
+def weights_init(m):
+    #print(classname)
+     if isinstance(m, (torch.nn.Linear, torch.nn.Conv1d, torch.nn.Conv2d)):
+         torch.nn.init.xavier_uniform_(m.weight)

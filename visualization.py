@@ -1,6 +1,6 @@
 from mpl_toolkits.mplot3d import Axes3D
 from utils import create_random_direction, get_weight_list, cal_path, create_pca_direction, get_delta, \
-    decomposition_delta, set_weight, test, plot_both_path, pro_weight, divide_param
+    decomposition_delta, set_weight, test, plot_both_path, pro_weight, divide_param, flat_param
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -69,7 +69,9 @@ def plot_path(model, origin_weight_list, filenames, dataloader, criterion, args)
 
 
 def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterion, x_coordinate, y_coordinate, direction, args):
-    pro_coef = np.zeros((2))
+    # pro_coef = np.zeros((2))
+    pro_coef = torch.zeros((2,1))
+    direction_tensors = [flat_param(direction[0]), flat_param(direction[1])]
     if args.project_point:
         project_point_checkpoint = torch.load(os.path.join(args.load_path, args.project_point))
         model.load_state_dict(project_point_checkpoint['state_dict'])
@@ -78,19 +80,20 @@ def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterio
         # # print(type(project_weight_vec))
         # project_weight_tensor = torch.tensor(project_weight_vec ).cuda()
         # project_weight_list = divide_param(project_weight_tensor,origin_weight_list)
-        origin_weight_list, pro_coef = pro_weight(origin_weight_list, direction, project_weight_list)
+        origin_weight_list, pro_coef = pro_weight(origin_weight_list, direction_tensors, project_weight_list)
     shape = (len(x_coordinate), len(y_coordinate))
 
+
     origin_losses = -np.ones(shape=shape)
-    back_track_losses = -np.ones(shape=shape)
-    forward_search_losses = -np.ones(shape=shape)
+    # back_track_losses = -np.ones(shape=shape)
+    # forward_search_losses = -np.ones(shape=shape)
 
     origin_accuracies = -np.ones(shape=shape)
-    back_track_accuracies = -np.ones(shape=shape)
-    forward_search_accuracies = -np.ones(shape=shape)
+    # back_track_accuracies = -np.ones(shape=shape)
+    # forward_search_accuracies = -np.ones(shape=shape)
 
-    back_track_search_count_sum = -np.ones(shape=shape)
-    forward_search_count_sum = -np.ones(shape=shape)
+    # back_track_search_count_sum = -np.ones(shape=shape)
+    # forward_search_count_sum = -np.ones(shape=shape)
 
     flat_index = np.array(range(origin_losses.size))
     x_coord_grid, y_coord_grid = np.meshgrid(x_coordinate, y_coordinate)
@@ -99,8 +102,11 @@ def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterio
     coords = np.c_[s1, s2]
 
     print('begin cal')
+    if args.base_checkpoint:
+        base_check = torch.load(os.path.join(args.load_path, args.base_checkpoint))
+        model.load_state_dict(base_check['state_dict'])
     # --------------- get landscape data ----------------------------
-    for count, ind in enumerate(tqdm(flat_index)):
+    for count, ind in enumerate(flat_index):
         coord = coords[count]
         dx = direction[0]
         dy = direction[1]
@@ -112,10 +118,11 @@ def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterio
         origin_acc, origin_loss = test(model, dataloader, criterion)
         origin_accuracies.ravel()[ind] = origin_acc
         origin_losses.ravel()[ind] = origin_loss
-
-        print('index{}    origin: acc:{}, loss:{}'.format(count, origin_acc, origin_loss))
+        if count %20 == 0:
+            print('index{}    origin: acc:{}, loss:{}'.format(count, origin_acc, origin_loss))
 
         # use back track search to find certain weight
+        '''
         if args.back_track_loss or args.forward_search_loss:
             delta_direction, temp_loss = get_delta(model, dataloader, criterion)  # [batch_num, param_num]
             delta_direction_vector = delta_direction[:3, :].mean(0)
@@ -147,11 +154,14 @@ def plot_landscape(model,weight_matrix, origin_weight_list, dataloader, criterio
             forward_search_count_sum.ravel()[ind] = forward_search_count
             print('index{}    forward: acc:{}, loss:{}, num:{}'.format(count, forward_search_acc, forward_search_loss,
                                                                        forward_search_count))
+        '''
     origin_result = [origin_accuracies, origin_losses]
-    back_result = [back_track_accuracies, back_track_losses, back_track_search_count_sum]
-    forward_result = [forward_search_accuracies, forward_search_losses, forward_search_count_sum]
 
-    return origin_result, back_result, forward_result, [x_coord_grid+pro_coef[0], y_coord_grid+pro_coef[0]]
+
+    # back_result = [back_track_accuracies, back_track_losses, back_track_search_count_sum]
+    # forward_result = [forward_search_accuracies, forward_search_losses, forward_search_count_sum]
+
+    return origin_result, [x_coord_grid+pro_coef[0][0].item(), y_coord_grid+pro_coef[1][0].item()]
 
 
 '''

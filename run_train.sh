@@ -1,11 +1,10 @@
 python train_path.py \
 --batch_size 4096 \
 --datasets CIFAR10 \
---name origin_path \
+--name path_1 \
 --epoch 100 \
 --mult_gpu \
---randomseed 7 \
+--randomseed 2 \
 --direction_type pca \
 --optimizer sgd \
---direction_type pca \
 --save_direction_type weight
